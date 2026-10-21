@@ -1,0 +1,39 @@
+name: Dockerfile digests
+
+on:
+  schedule:
+    - cron: "41 7 * * 1"
+  workflow_dispatch:
+
+permissions: read-all
+
+jobs:
+  digests:
+    name: Check base image digests
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Install skopeo and jq
+        run: sudo apt-get update && sudo apt-get install -y skopeo jq
+
+      - name: Compare pinned digests with registry tags
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          status=0
+          for dockerfile in build/Dockerfile* build/onnxruntime/Dockerfile*; do
+            [[ -f "$dockerfile" ]] || continue
+            args=()
+            case "$dockerfile" in
+              *.tensorrt12|*.qnn|*.openvino|*.migraphx)
+                args+=(--min-archs 1)
+                ;;
+            esac
+            echo "---- ${dockerfile}"
+            if ! scripts/check-dockerfile-digests.sh "${args[@]}" "$dockerfile"; then
+              status=1
+            fi
+          done
+          exit "$status"

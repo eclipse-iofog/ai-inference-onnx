@@ -1,0 +1,5 @@
+The JPEG files in wafers/ are a class-balanced subset of the frame-generator demo set.
+
+Dataset: Wafer Defects - Images, Annotations & Model
+Author: ellimaaac
+Source: https://www.kaggle.com/datasets/ellimaaac/wafer-defects-images-annotations-model

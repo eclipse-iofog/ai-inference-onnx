@@ -1,0 +1,9 @@
+# Edgelet maintainers
+
+| Maintainer             | GitHub ID                                          | Project Roles        | Affiliation |
+|------------------------|----------------------------------------------------|----------------------|-------------|
+| Emirhan Durmus         | [@emirhandurmus](https://github.com/emirhandurmus) | Project Lead         | Datasance   |
+
+## Responsibility
+
+Maintainers review merges to `develop`, cut release tags, and triage security reports per [SECURITY.md](SECURITY.md).

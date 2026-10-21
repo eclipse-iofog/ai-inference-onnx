@@ -1,0 +1,351 @@
+# MIGraphX engine image.
+# The runtime library comes from the onnxruntime build context.
+# ROCm 7.1 libraries are staged from the AlmaLinux development image into UBI 9.8 Micro.
+
+FROM scratch AS onnxruntime
+
+FROM rocm/dev-almalinux-8:7.1-complete@sha256:4aff9b792f62571ef7245fdf0932db06f936f38ea1fc60454a18c371c08f1c5c AS engine-ubi
+
+ARG TARGETARCH
+ENV LDFLAGS=
+
+RUN if [ "$TARGETARCH" != amd64 ]; then echo "MIGraphX is built for amd64" >&2; exit 1; fi
+RUN dnf install -y --setopt=install_weak_deps=False \
+        ca-certificates \
+        curl \
+        tar \
+        gzip \
+        binutils \
+    && go_sum=ccfe7ae822d2c2f41f4fe7c956199967a4dac22d0ee0d2b2bfdb440aab3b20c5 \
+    && curl -fsSL -o /tmp/go.tgz "https://go.dev/dl/go1.26.10.linux-amd64.tar.gz" \
+    && echo "${go_sum}  /tmp/go.tgz" | sha256sum -c - \
+    && rm -rf /usr/local/go \
+    && tar -C /usr/local -xzf /tmp/go.tgz \
+    && rm -f /tmp/go.tgz \
+    && dnf clean all \
+    && rm -rf /var/cache/dnf
+
+ENV PATH=/usr/local/go/bin:${PATH} \
+    GOTOOLCHAIN=local \
+    LDFLAGS=
+
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN set -eu; \
+    unset LDFLAGS; \
+    mkdir -p /out; \
+    CGO_ENABLED=1 go build -trimpath -buildvcs=false -o /out/inference ./cmd/inference; \
+    if readelf -d /out/inference | grep -q 'libonnxruntime'; then \
+      echo "engine binary links the runtime library" >&2; \
+      exit 1; \
+    fi
+
+FROM rocm/dev-almalinux-8:7.1-complete@sha256:4aff9b792f62571ef7245fdf0932db06f936f38ea1fc60454a18c371c08f1c5c AS rocm-libs
+
+RUN bash <<'ENDSCRIPT'
+set -euo pipefail
+mkdir -p /out/lib /out/licenses /out/share
+shopt -s nullglob
+seeded=0
+for pattern in \
+  'libmigraphx*.so*' \
+  'libamdhip64.so*' \
+  'libhiprtc*.so*' \
+  'libamd_comgr.so*' \
+  'libhsa-runtime64.so*' \
+  'libhsakmt.so*' \
+  'librocblas.so*' \
+  'librocsolver.so*' \
+  'libMIOpen.so*' \
+  'libhipblas.so*' \
+  'libhipblaslt.so*' \
+  'libprotobuf.so*' \
+  'librocm_smi64.so*' \
+  'libsqlite3.so*'
+do
+  for dir in /opt/rocm/lib /opt/rocm/lib64; do
+    for f in "$dir"/$pattern; do
+      cp -a "$f" /out/lib/
+      seeded=1
+    done
+  done
+done
+if [ "$seeded" -ne 1 ]; then
+  echo "ROCm image has no MIGraphX libraries" >&2
+  exit 1
+fi
+if [ -d /opt/rocm/lib/rocblas ]; then
+  mkdir -p /out/lib/rocblas
+  cp -a /opt/rocm/lib/rocblas/. /out/lib/rocblas/
+fi
+if [ -d /opt/rocm/share/miopen ]; then
+  mkdir -p /out/share/miopen
+  cp -a /opt/rocm/share/miopen/. /out/share/miopen/
+fi
+if [ -z "$(find /out/share -type f -print -quit)" ]; then
+  : > /out/share/.keep
+fi
+baseline() {
+  case "$1" in
+    libc.so.6|libm.so.6|libdl.so.2|libpthread.so.0|librt.so.1|libgcc_s.so.1|libstdc++.so.6|ld-linux-x86-64.so.2|libresolv.so.2|libutil.so.1|libcrypt.so.1|libnss_files.so.2|libnss_dns.so.2|libanl.so.1)
+      return 0 ;;
+  esac
+  return 1
+}
+copy_resolved() {
+  local path="$1" real base dir name
+  case "$path" in
+    /opt/rh/*)
+      echo "refusing compiler library $path" >&2
+      return 1
+      ;;
+  esac
+  real=$(readlink -f "$path")
+  case "$real" in
+    /opt/rh/*)
+      echo "refusing compiler library $real" >&2
+      return 1
+      ;;
+  esac
+  base=$(basename "$real")
+  if [ ! -e "/out/lib/$base" ]; then
+    cp -a "$real" "/out/lib/$base"
+  fi
+  dir=$(dirname "$path")
+  for name in "$dir"/*; do
+    [ -L "$name" ] || continue
+    if [ "$(readlink -f "$name")" = "$real" ]; then
+      ln -sfn "$base" "/out/lib/$(basename "$name")"
+    fi
+  done
+}
+export LD_LIBRARY_PATH=/out/lib:/opt/rocm/lib:/opt/rocm/lib64
+round=0
+while true; do
+  round=$((round + 1))
+  if [ "$round" -gt 20 ]; then
+    echo "ROCm library closure did not settle" >&2
+    exit 1
+  fi
+  changed=0
+  : > /tmp/missing
+  for so in /out/lib/*; do
+    [ -f "$so" ] && [ ! -L "$so" ] || continue
+    if ! readelf -h "$so" >/dev/null 2>&1; then
+      continue
+    fi
+    ldd "$so" > /tmp/ldd.out 2>&1 || true
+    while IFS= read -r line; do
+      case "$line" in
+        *'=> not found'*)
+          set -- $line
+          soname=$1
+          baseline "$soname" && continue
+          found=$(find /opt/rocm/lib /opt/rocm/lib64 /usr/lib64 /lib64 -name "$soname" -print -quit 2>/dev/null || true)
+          if [ -z "$found" ]; then
+            echo "$so: missing $soname" >> /tmp/missing
+            continue
+          fi
+          before=$(find /out/lib -maxdepth 1 \( -type f -o -type l \) | wc -l)
+          copy_resolved "$found"
+          after=$(find /out/lib -maxdepth 1 \( -type f -o -type l \) | wc -l)
+          if [ "$after" -gt "$before" ]; then
+            changed=1
+          fi
+          ;;
+        *'=> /'*)
+          set -- $line
+          soname=$1
+          path=$3
+          baseline "$soname" && continue
+          case "$path" in
+            /out/*) continue ;;
+          esac
+          real=$(readlink -f "$path")
+          if [ ! -e "/out/lib/$(basename "$real")" ]; then
+            copy_resolved "$path"
+            changed=1
+          fi
+          ;;
+      esac
+    done < /tmp/ldd.out
+  done
+  if [ "$changed" -eq 0 ]; then
+    break
+  fi
+done
+if [ -s /tmp/missing ]; then
+  sort -u /tmp/missing >&2
+  exit 1
+fi
+find /out/lib -maxdepth 1 -name 'libmigraphx_c.so*' | grep -q .
+find /out/lib -maxdepth 1 -name 'libamdhip64.so*' | grep -q .
+for f in /out/lib/*; do
+  if [ -f "$f" ] && [ ! -L "$f" ]; then
+    chmod 0755 "$f"
+  fi
+done
+if [ -d /opt/rocm/share/doc ]; then
+  find /opt/rocm/share/doc -maxdepth 2 -type f \( -iname 'LICENSE*' -o -iname 'COPYING*' \) -print | while IFS= read -r lic; do
+    pkg=$(basename "$(dirname "$lic")")
+    cp -a "$lic" "/out/licenses/${pkg}-$(basename "$lic")"
+  done
+fi
+if [ -z "$(find /out/licenses -type f -print -quit)" ]; then
+  printf '%s\n' 'ROCm 7.1' > /out/licenses/rocm-NOTICE
+fi
+ENDSCRIPT
+
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8@sha256:c4c285d42941ebb2bd4da878479008e1e4536bb599aad1dbe568f89de9053661 AS user-staging-ubi
+
+RUN microdnf install -y --setopt=install_weak_deps=0 \
+        shadow-utils \
+        ca-certificates \
+        libstdc++ \
+    && microdnf clean all \
+    && test -e /usr/lib64/libstdc++.so.6 \
+    && test -f /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem \
+    && groupadd --gid 10001 inference \
+    && useradd --uid 10001 --gid 10001 --home-dir /home/inference --no-create-home --shell /sbin/nologin inference
+
+FROM user-staging-ubi AS runtime-staging-ubi
+
+RUN microdnf install -y --setopt=install_weak_deps=0 binutils \
+    && microdnf clean all
+
+COPY --from=engine-ubi /out/inference /staging/usr/local/bin/inference
+COPY --from=onnxruntime /lib/ /staging/opt/onnxruntime/lib/
+COPY --from=onnxruntime /licenses/ /staging/licenses/
+COPY --from=rocm-libs /out/lib/ /staging/opt/rocm/lib/
+COPY --from=rocm-libs /out/share/ /staging/opt/rocm/share/
+COPY --from=rocm-libs /out/licenses/ /staging/licenses/
+
+RUN bash <<'ENDSCRIPT'
+set -euo pipefail
+mkdir -p \
+  /staging/etc/pki/ca-trust/extracted/pem \
+  /staging/etc/pki/tls/certs \
+  /staging/usr/lib64 \
+  /staging/usr/bin \
+  /staging/opt/rocm/lib \
+  /staging/var/cache/inference \
+  /staging/home/inference
+cp -a /etc/passwd /etc/group /staging/etc/
+cp -a /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem /staging/etc/pki/ca-trust/extracted/pem/
+ln -s /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem /staging/etc/pki/tls/certs/ca-bundle.crt
+cp -a /usr/lib64/libstdc++.so.6 /usr/lib64/libstdc++.so.6.* /staging/usr/lib64/
+rm -f /staging/opt/rocm/share/.keep
+chmod 0755 /staging/usr/local/bin/inference
+for lib in /staging/usr/lib64/* /staging/opt/onnxruntime/lib/* /staging/opt/rocm/lib/*; do
+  if [ -f "$lib" ] && [ ! -L "$lib" ]; then
+    chmod 0755 "$lib"
+  fi
+done
+chown root:root /staging/usr/local/bin/inference
+chown -R root:root /staging/opt/onnxruntime/lib /staging/opt/rocm /staging/usr/lib64 /staging/licenses
+chown -R 10001:10001 /staging/var/cache/inference /staging/home/inference
+chmod 0750 /staging/var/cache/inference /staging/home/inference
+find /staging/opt/rocm/lib -maxdepth 1 -name 'libmigraphx_c.so*' | grep -q .
+host_object() {
+  header=$(readelf -h "$1" 2>/dev/null || true)
+  case "$header" in
+    *X86-64*) return 0 ;;
+  esac
+  return 1
+}
+check_ldd() {
+  local bin="$1" out line path base
+  out="$(ldd "$bin" 2>&1)" || { printf '%s\n' "$out" >&2; echo "$bin: ldd failed" >&2; return 1; }
+  while IFS= read -r line; do
+    case "$line" in
+      *'=> not found'*)
+        printf '%s\n' "$out" >&2
+        echo "$bin: missing library" >&2
+        return 1
+        ;;
+      *'=> /'*)
+        set -- $line
+        path=$3
+        base=${path##*/}
+        case "$path" in
+          /staging/*) ;;
+          *)
+            case "$base" in
+              libc.so.6|libm.so.6|libdl.so.2|libpthread.so.0|librt.so.1|libgcc_s.so.1|ld-linux-*.so.*) ;;
+              *)
+                echo "$bin: $base is outside the staged root ($path)" >&2
+                return 1
+                ;;
+            esac
+            ;;
+        esac
+        ;;
+    esac
+  done <<EOF
+$out
+EOF
+}
+check_abi() {
+  local bin="$1" syms sym ver ceiling first
+  if readelf -d "$bin" | grep -E 'RPATH|RUNPATH' | grep -q '/opt/rh/'; then
+    echo "$bin: runtime path points at the compiler toolset" >&2
+    return 1
+  fi
+  syms="$(objdump -T "$bin" | grep '\*UND\*' | grep -oE 'GLIBC_[0-9]+\.[0-9]+|GLIBCXX_[0-9]+\.[0-9]+\.[0-9]+' | sort -u || true)"
+  for sym in $syms; do
+    case "$sym" in
+      GLIBC_*) ver="${sym#GLIBC_}"; ceiling=2.34 ;;
+      GLIBCXX_*) ver="${sym#GLIBCXX_}"; ceiling=3.4.29 ;;
+      *) continue ;;
+    esac
+    first="$(printf '%s\n%s\n' "$ceiling" "$ver" | sort -V | head -n 1)"
+    if [ "$first" = "$ceiling" ] && [ "$ver" != "$ceiling" ]; then
+      echo "$bin: needs a symbol newer than glibc 2.34 or GLIBCXX_3.4.29: $sym" >&2
+      return 1
+    fi
+  done
+}
+fail=0
+export LD_LIBRARY_PATH=/staging/opt/rocm/lib:/staging/usr/lib64:/staging/opt/onnxruntime/lib
+check_ldd /staging/usr/local/bin/inference || fail=1
+check_abi /staging/usr/local/bin/inference || fail=1
+if readelf -d /staging/usr/local/bin/inference | grep -q 'libonnxruntime'; then
+  echo "engine binary links the runtime library" >&2
+  fail=1
+fi
+for lib in /staging/usr/lib64/* /staging/opt/onnxruntime/lib/* /staging/opt/rocm/lib/*; do
+  if [ -f "$lib" ] && [ ! -L "$lib" ] && host_object "$lib"; then
+    check_ldd "$lib" || fail=1
+    check_abi "$lib" || fail=1
+  fi
+done
+test "$fail" -eq 0
+ENDSCRIPT
+
+FROM registry.access.redhat.com/ubi9/ubi-micro:9.8@sha256:5be877a2a280ae36eb9ab80ca4efb28bbf77c57abbba38137cdc37a03b8465e6 AS final-ubi
+
+COPY --from=runtime-staging-ubi /staging/ /
+
+ARG OCI_SOURCE_REPO
+ARG OCI_VERSION
+ARG OCI_REVISION
+ARG ROCM_VERSION=7.1
+
+ENV ORT_LIB_PATH=/opt/onnxruntime/lib/libonnxruntime.so.1.31.0 \
+    HOME=/home/inference \
+    XDG_CACHE_HOME=/var/cache \
+    LD_LIBRARY_PATH=/opt/rocm/lib
+
+LABEL org.opencontainers.image.version="${OCI_VERSION}" \
+      org.opencontainers.image.revision="${OCI_REVISION}" \
+      org.opencontainers.image.source="${OCI_SOURCE_REPO}" \
+      org.opencontainers.image.licenses="EPL-2.0" \
+      org.eclipse.iofog.inference.onnxruntime="1.31.0" \
+      org.eclipse.iofog.inference.rocm="${ROCM_VERSION}"
+
+USER 10001:10001
+WORKDIR /home/inference
+EXPOSE 8000 8001 8002
+ENTRYPOINT ["/usr/local/bin/inference"]

@@ -1,0 +1,10 @@
+{
+  "classes": [
+    {"id": "center", "index": 0, "label": "Center", "yieldRisk": "low"},
+    {"id": "donut", "index": 1, "label": "Donut", "yieldRisk": "medium"},
+    {"id": "edge-loc", "index": 2, "label": "Edge-Loc", "yieldRisk": "high"},
+    {"id": "edge-ring", "index": 3, "label": "Edge-Ring", "yieldRisk": "high"},
+    {"id": "loc", "index": 4, "label": "Loc", "yieldRisk": "medium"},
+    {"id": "scratch", "index": 5, "label": "Scratch", "yieldRisk": "medium"}
+  ]
+}

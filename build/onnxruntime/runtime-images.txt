@@ -1,0 +1,4 @@
+# Each later line is a variant, then the tag and digest, with no registry host.
+# Example:
+# cpu 1.31.0-cpu@sha256:<64 hex>
+cpu 1.31.0-cpu@sha256:690d4b88ec1858cc3e4a43e377dee8eeeea107e1b875500d59e275fc5a886048

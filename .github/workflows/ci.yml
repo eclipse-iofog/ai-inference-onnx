@@ -1,0 +1,202 @@
+name: CI
+
+on:
+  push:
+    branches: [ develop ]
+  pull_request:
+    branches: [ develop ]
+  workflow_dispatch:
+
+permissions: read-all
+
+env:
+  GO_VERSION: '1.26.10'
+
+jobs:
+  quality:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Engine
+            working-directory: .
+          - name: Dashboard
+            working-directory: dashboard
+    defaults:
+      run:
+        working-directory: ${{ matrix.working-directory }}
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: go.sum
+
+      - run: go version
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@82606bf257cbaff209d206a39f5134f0cfbfd2ee # v9.2.1, lint version v2.12.2
+        with:
+          version: v2.12.2
+          args: --timeout=5m0s
+          working-directory: ${{ matrix.working-directory }}
+
+      - name: go vet
+        working-directory: ${{ github.workspace }}
+        run: make vet
+
+      - name: gosec
+        working-directory: ${{ github.workspace }}
+        run: make security-code
+
+      - name: Test
+        working-directory: ${{ github.workspace }}
+        run: make test
+
+      - name: Fuzz and pin check
+        if: matrix.name == 'Engine'
+        run: |
+          CGO_ENABLED=0 go test -fuzz=FuzzParseSubject -fuzztime=30s ./internal/natsapi/
+          CGO_ENABLED=0 go test -fuzz=FuzzDecodeTensor -fuzztime=30s ./internal/batch/
+          python3 scripts/check-dockerfile-pins.py
+
+  cpu-image:
+    name: CPU image (${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-latest, ubuntu-24.04-arm]
+    env:
+      IMAGE_REGISTRY: ${{ vars.IMAGE_REGISTRY }}
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0
+
+      - name: Choose the CPU runtime
+        id: runtime
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          files=""
+          case "$EVENT_NAME" in
+            workflow_dispatch)
+              ;;
+            pull_request)
+              if [ -z "${BASE_SHA}" ]; then
+                echo "pull request base is unknown" >&2
+                exit 1
+              fi
+              if ! git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
+                git fetch --no-tags origin "${BASE_SHA}"
+              fi
+              files="$(git diff --name-only "${BASE_SHA}" HEAD)"
+              ;;
+            push)
+              if [ -z "${BEFORE_SHA}" ] || [ "${BEFORE_SHA}" = "0000000000000000000000000000000000000000" ]; then
+                files="$(git ls-tree -r --name-only HEAD)"
+              elif git cat-file -e "${BEFORE_SHA}^{commit}" 2>/dev/null; then
+                files="$(git diff --name-only "${BEFORE_SHA}" HEAD)"
+              elif git fetch --no-tags origin "${BEFORE_SHA}"; then
+                files="$(git diff --name-only "${BEFORE_SHA}" HEAD)"
+              else
+                files="$(git ls-tree -r --name-only HEAD)"
+              fi
+              ;;
+            *)
+              echo "unexpected event ${EVENT_NAME}" >&2
+              exit 1
+              ;;
+          esac
+
+          skip=false
+          if [ "$EVENT_NAME" != "workflow_dispatch" ] && [ -n "$files" ]; then
+            outside="$(printf '%s\n' "$files" | grep -v '^dashboard/' || true)"
+            if [ -z "$outside" ]; then
+              skip=true
+            fi
+          fi
+
+          touched=false
+          if [ -n "$files" ] && printf '%s\n' "$files" | grep -Eq '^(scripts/build-onnxruntime\.sh$|build/onnxruntime/)'; then
+            touched=true
+          fi
+
+          cpu_ref=""
+          lock=build/onnxruntime/runtime-images.txt
+          if [ -f "$lock" ]; then
+            cpu_ref="$(grep -E '^cpu 1\.31\.0-cpu@sha256:[0-9a-f]{64}$' "$lock" | awk 'NR==1 { print $2 }' || true)"
+          fi
+
+          mode=source
+          if [ "$touched" = false ] && [ -n "$cpu_ref" ]; then
+            mode=recorded
+          fi
+
+          registry="${IMAGE_REGISTRY:-}"
+          if [ -z "$registry" ]; then
+            case "${GITHUB_REPOSITORY}" in
+              eclipse-iofog/ai-inference-onnx)
+                registry=ghcr.io/eclipse-iofog
+                ;;
+              *)
+                registry=ghcr.io/datasance
+                ;;
+            esac
+          fi
+          registry="${registry%/}"
+          if [ -z "$registry" ]; then
+            echo "IMAGE_REGISTRY is empty" >&2
+            exit 1
+          fi
+
+          if [ "$skip" = true ]; then
+            echo "CPU image skipped: every changed file is under dashboard/"
+          else
+            echo "CPU image runtime: ${mode}"
+          fi
+
+          echo "IMAGE_REGISTRY=${registry}" >> "$GITHUB_ENV"
+          {
+            echo "skip=${skip}"
+            echo "mode=${mode}"
+            echo "cpu_ref=${cpu_ref}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Set up Go
+        if: ${{ steps.runtime.outputs.skip != 'true' }}
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: go.sum
+
+      - name: Install cosign
+        if: ${{ steps.runtime.outputs.skip != 'true' && steps.runtime.outputs.mode == 'recorded' }}
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Verify the recorded CPU runtime
+        if: ${{ steps.runtime.outputs.skip != 'true' && steps.runtime.outputs.mode == 'recorded' }}
+        env:
+          CPU_REF: ${{ steps.runtime.outputs.cpu_ref }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          identity="https://github.com/${GITHUB_REPOSITORY}/.github/workflows/onnxruntime.yml@refs/heads/${DEFAULT_BRANCH}"
+          cosign verify \
+            --certificate-identity "$identity" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            "${IMAGE_REGISTRY}/ai-inference-onnx-runtime:${CPU_REF}"
+
+      - name: Test the CPU engine image
+        if: ${{ steps.runtime.outputs.skip != 'true' }}
+        env:
+          ENGINE_TEST_RUNTIME: ${{ steps.runtime.outputs.mode }}
+        run: ./scripts/engine-image-test.sh

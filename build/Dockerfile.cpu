@@ -1,0 +1,298 @@
+# CPU engine image.
+# The runtime library comes from the onnxruntime build context.
+# amd64 and arm64 land on UBI 9.8 Micro. riscv64 lands on distroless.
+# The binary loads the library at run time and does not link it.
+
+FROM scratch AS onnxruntime
+
+FROM registry.access.redhat.com/ubi9/ubi:9.8@sha256:16e9e43d99e181463513cc84a514859b1abb9460f1c4d9e208da4b4e51cd5cc3 AS engine-ubi
+
+ARG TARGETARCH
+RUN dnf install -y --setopt=install_weak_deps=False \
+        gcc-toolset-14 \
+        gcc-toolset-14-gcc-c++ \
+        gcc-toolset-14-binutils \
+        ca-certificates \
+        tar \
+        gzip \
+    && case "$TARGETARCH" in \
+         amd64) go_sum=ccfe7ae822d2c2f41f4fe7c956199967a4dac22d0ee0d2b2bfdb440aab3b20c5 ;; \
+         arm64) go_sum=3f4227ce7b206a513e794f1393adb473a07b46e94d18bd15d1c684bbb7319797 ;; \
+         *) echo "no Go archive for ${TARGETARCH}" >&2; exit 1 ;; \
+       esac \
+    && curl -fsSL -o /tmp/go.tgz "https://go.dev/dl/go1.26.10.linux-${TARGETARCH}.tar.gz" \
+    && echo "${go_sum}  /tmp/go.tgz" | sha256sum -c - \
+    && rm -rf /usr/local/go \
+    && tar -C /usr/local -xzf /tmp/go.tgz \
+    && rm -f /tmp/go.tgz \
+    && dnf clean all \
+    && rm -rf /var/cache/dnf
+
+ENV PATH=/usr/local/go/bin:${PATH} \
+    GOTOOLCHAIN=local
+
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN set -eu; \
+    . /opt/rh/gcc-toolset-14/enable; \
+    mkdir -p /out; \
+    CGO_ENABLED=1 go build -trimpath -buildvcs=false -o /out/inference ./cmd/inference; \
+    if readelf -d /out/inference | grep -q 'libonnxruntime'; then \
+      echo "engine binary links the runtime library" >&2; \
+      exit 1; \
+    fi
+
+FROM --platform=$BUILDPLATFORM golang:1.26.10-trixie@sha256:7202554ed358a37f41c44e4910ae29bbc5ef0715f289ac637218adbb0ca132dd AS engine-cross
+
+ARG TARGETARCH
+RUN apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+         ca-certificates \
+         curl \
+    && curl -fsSL -o /tmp/riscv-toolchain.tgz \
+         "https://github.com/riscv-collab/riscv-gnu-toolchain/releases/download/2024.04.12/riscv64-glibc-ubuntu-22.04-gcc-nightly-2024.04.12-nightly.tar.gz" \
+    && echo "5a386a6170934d03f468f9818a8541a3c479d26c7fde82f685008b7f5e3f8ccc  /tmp/riscv-toolchain.tgz" | sha256sum -c - \
+    && mkdir -p /opt/riscv \
+    && tar -C /opt/riscv --strip-components=1 -xzf /tmp/riscv-toolchain.tgz \
+    && rm -f /tmp/riscv-toolchain.tgz /opt/riscv/bin/qemu-riscv64 /opt/riscv/bin/qemu-riscv32 \
+    && test -x /opt/riscv/bin/riscv64-unknown-linux-gnu-gcc \
+    && test -d /opt/riscv/sysroot \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN set -eu; \
+    case "$TARGETARCH" in \
+      riscv64) \
+        export CC=/opt/riscv/bin/riscv64-unknown-linux-gnu-gcc CXX=/opt/riscv/bin/riscv64-unknown-linux-gnu-g++ GOARCH=riscv64; \
+        readelf=/opt/riscv/bin/riscv64-unknown-linux-gnu-readelf; \
+        ;; \
+      *) echo "cross build is for riscv64, not ${TARGETARCH}" >&2; exit 1 ;; \
+    esac; \
+    mkdir -p /out; \
+    CGO_ENABLED=1 GOOS=linux go build -trimpath -buildvcs=false -o /out/inference ./cmd/inference; \
+    if "$readelf" -d /out/inference | grep -q 'libonnxruntime'; then \
+      echo "engine binary links the runtime library" >&2; \
+      exit 1; \
+    fi
+
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8@sha256:c4c285d42941ebb2bd4da878479008e1e4536bb599aad1dbe568f89de9053661 AS user-staging-ubi
+
+RUN microdnf install -y --setopt=install_weak_deps=0 \
+        shadow-utils \
+        ca-certificates \
+        libstdc++ \
+    && microdnf clean all \
+    && test -e /usr/lib64/libstdc++.so.6 \
+    && test -f /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem \
+    && groupadd --gid 10001 inference \
+    && useradd --uid 10001 --gid 10001 --home-dir /home/inference --no-create-home --shell /sbin/nologin inference
+
+FROM user-staging-ubi AS runtime-staging-ubi
+
+RUN microdnf install -y --setopt=install_weak_deps=0 binutils \
+    && microdnf clean all
+
+COPY --from=engine-ubi /out/inference /staging/usr/local/bin/inference
+COPY --from=onnxruntime /lib/ /staging/opt/onnxruntime/lib/
+COPY --from=onnxruntime /licenses/ /staging/licenses/
+
+# UBI Micro ships the shell. The staged root leaves it in place.
+RUN set -eu; \
+    mkdir -p \
+      /staging/etc/pki/ca-trust/extracted/pem \
+      /staging/etc/pki/tls/certs \
+      /staging/usr/lib64 \
+      /staging/var/cache/inference \
+      /staging/home/inference; \
+    cp -a /etc/passwd /etc/group /staging/etc/; \
+    cp -a /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem /staging/etc/pki/ca-trust/extracted/pem/; \
+    ln -s /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem /staging/etc/pki/tls/certs/ca-bundle.crt; \
+    cp -a /usr/lib64/libstdc++.so.6 /usr/lib64/libstdc++.so.6.* /staging/usr/lib64/; \
+    chmod 0755 /staging/usr/local/bin/inference; \
+    for lib in /staging/usr/lib64/libstdc++.so.6.*; do \
+      if [ -f "$lib" ] && [ ! -L "$lib" ]; then chmod 0755 "$lib"; fi; \
+    done; \
+    for lib in /staging/opt/onnxruntime/lib/*; do \
+      if [ -f "$lib" ] && [ ! -L "$lib" ]; then chmod 0755 "$lib"; fi; \
+    done; \
+    chown root:root /staging/usr/local/bin/inference; \
+    chown -R root:root /staging/opt/onnxruntime/lib /staging/usr/lib64 /staging/licenses; \
+    chown 10001:10001 /staging/var/cache/inference /staging/home/inference; \
+    chmod 0750 /staging/var/cache/inference /staging/home/inference; \
+    check_ldd() { \
+      out="$(ldd "$1" 2>&1)" || { printf '%s\n' "$out" >&2; echo "$1: ldd failed" >&2; return 1; }; \
+      if printf '%s\n' "$out" | grep -q 'not found'; then \
+        printf '%s\n' "$out" >&2; \
+        echo "$1: missing library" >&2; \
+        return 1; \
+      fi; \
+    }; \
+    check_abi() { \
+      if readelf -d "$1" | grep -E 'RPATH|RUNPATH' | grep -q '/opt/rh/'; then \
+        echo "$1: runtime path points at the compiler toolset" >&2; \
+        return 1; \
+      fi; \
+      syms="$(objdump -T "$1" | grep '\*UND\*' | grep -oE 'GLIBC_[0-9]+\.[0-9]+|GLIBCXX_[0-9]+\.[0-9]+\.[0-9]+' | sort -u || true)"; \
+      for sym in $syms; do \
+        case "$sym" in \
+          GLIBC_*) ver="${sym#GLIBC_}"; ceiling=2.34 ;; \
+          GLIBCXX_*) ver="${sym#GLIBCXX_}"; ceiling=3.4.29 ;; \
+          *) continue ;; \
+        esac; \
+        first="$(printf '%s\n%s\n' "$ceiling" "$ver" | sort -V | head -n 1)"; \
+        if [ "$first" = "$ceiling" ] && [ "$ver" != "$ceiling" ]; then \
+          echo "$1: needs a symbol newer than glibc 2.34 or GLIBCXX_3.4.29: $sym" >&2; \
+          return 1; \
+        fi; \
+      done; \
+    }; \
+    fail=0; \
+    export LD_LIBRARY_PATH=/staging/usr/lib64:/staging/opt/onnxruntime/lib; \
+    check_ldd /staging/usr/local/bin/inference || fail=1; \
+    check_abi /staging/usr/local/bin/inference || fail=1; \
+    if readelf -d /staging/usr/local/bin/inference | grep -q 'libonnxruntime'; then \
+      echo "engine binary links the runtime library" >&2; \
+      fail=1; \
+    fi; \
+    for lib in /staging/usr/lib64/libstdc++.so.6.* /staging/opt/onnxruntime/lib/*; do \
+      if [ -f "$lib" ] && [ ! -L "$lib" ]; then \
+        check_ldd "$lib" || fail=1; \
+        check_abi "$lib" || fail=1; \
+      fi; \
+    done; \
+    [ "$fail" -eq 0 ]
+
+FROM engine-cross AS staging-cross
+
+ARG TARGETARCH
+COPY --from=gcr.io/distroless/cc-debian13:nonroot@sha256:e792ab3d241a468a4fd7519ddbbebe66b49b5f365771716ea688ad40b6c6f1c2 /etc/passwd /tmp/distroless/passwd
+COPY --from=gcr.io/distroless/cc-debian13:nonroot@sha256:e792ab3d241a468a4fd7519ddbbebe66b49b5f365771716ea688ad40b6c6f1c2 /etc/group /tmp/distroless/group
+COPY --from=onnxruntime /lib/ /staging/opt/onnxruntime/lib/
+COPY --from=onnxruntime /licenses/ /staging/licenses/
+
+RUN set -eu; \
+    case "$TARGETARCH" in \
+      riscv64) \
+        objdump=/opt/riscv/bin/riscv64-unknown-linux-gnu-objdump; \
+        readelf=/opt/riscv/bin/riscv64-unknown-linux-gnu-readelf; \
+        ;; \
+      *) echo "cross build is for riscv64, not ${TARGETARCH}" >&2; exit 1 ;; \
+    esac; \
+    mkdir -p /staging/etc /staging/usr/local/bin /staging/var/cache/inference /staging/home/inference; \
+    grep -q '^inference:' /tmp/distroless/group || printf 'inference:x:10001:\n' >> /tmp/distroless/group; \
+    grep -q '^inference:' /tmp/distroless/passwd || printf 'inference:x:10001:10001::/home/inference:/sbin/nologin\n' >> /tmp/distroless/passwd; \
+    cp /tmp/distroless/passwd /staging/etc/passwd; \
+    cp /tmp/distroless/group /staging/etc/group; \
+    cp /out/inference /staging/usr/local/bin/inference; \
+    chmod 0755 /staging/usr/local/bin/inference; \
+    for lib in /staging/opt/onnxruntime/lib/*; do \
+      if [ -f "$lib" ] && [ ! -L "$lib" ]; then chmod 0755 "$lib"; fi; \
+    done; \
+    chown root:root /staging/usr/local/bin/inference; \
+    chown -R root:root /staging/opt/onnxruntime/lib /staging/licenses; \
+    chown 10001:10001 /staging/var/cache/inference /staging/home/inference; \
+    chmod 0750 /staging/var/cache/inference /staging/home/inference; \
+    bundled() { \
+      case "$1" in \
+        libc.so.6|libm.so.6|libdl.so.2|libpthread.so.0|librt.so.1|libresolv.so.2|libutil.so.1|libgcc_s.so.1|libstdc++.so.6|libcrypt.so.1|libnss_files.so.2|libnss_dns.so.2|libanl.so.1) \
+          return 0 ;; \
+        ld-linux*) return 0 ;; \
+      esac; \
+      if [ -e "/staging/opt/onnxruntime/lib/$1" ]; then return 0; fi; \
+      return 1; \
+    }; \
+    check_needed() { \
+      missing=0; \
+      libs="$("$readelf" -d "$1" | sed -n 's/.*Shared library: \[\([^]]*\)\].*/\1/p')"; \
+      for lib in $libs; do \
+        if ! bundled "$lib"; then \
+          echo "$1: missing library $lib" >&2; \
+          missing=1; \
+        fi; \
+      done; \
+      return "$missing"; \
+    }; \
+    check_abi() { \
+      if "$readelf" -d "$1" | grep -E 'RPATH|RUNPATH' | grep -q '/opt/rh/'; then \
+        echo "$1: runtime path points at the compiler toolset" >&2; \
+        return 1; \
+      fi; \
+      syms="$("$objdump" -T "$1" | grep '\*UND\*' | grep -oE 'GLIBC_[0-9]+\.[0-9]+|GLIBCXX_[0-9]+\.[0-9]+\.[0-9]+' | sort -u || true)"; \
+      for sym in $syms; do \
+        case "$sym" in \
+          GLIBC_*) ver="${sym#GLIBC_}"; ceiling=2.39 ;; \
+          GLIBCXX_*) ver="${sym#GLIBCXX_}"; ceiling=3.4.31 ;; \
+          *) continue ;; \
+        esac; \
+        first="$(printf '%s\n%s\n' "$ceiling" "$ver" | sort -V | head -n 1)"; \
+        if [ "$first" = "$ceiling" ] && [ "$ver" != "$ceiling" ]; then \
+          echo "$1: needs a symbol newer than glibc 2.39 or GLIBCXX_3.4.31: $sym" >&2; \
+          return 1; \
+        fi; \
+      done; \
+    }; \
+    fail=0; \
+    check_needed /staging/usr/local/bin/inference || fail=1; \
+    check_abi /staging/usr/local/bin/inference || fail=1; \
+    if "$readelf" -d /staging/usr/local/bin/inference | grep -q 'libonnxruntime'; then \
+      echo "engine binary links the runtime library" >&2; \
+      fail=1; \
+    fi; \
+    for lib in /staging/opt/onnxruntime/lib/*; do \
+      if [ -f "$lib" ] && [ ! -L "$lib" ]; then \
+        check_needed "$lib" || fail=1; \
+        check_abi "$lib" || fail=1; \
+      fi; \
+    done; \
+    [ "$fail" -eq 0 ]
+
+FROM registry.access.redhat.com/ubi9/ubi-micro:9.8@sha256:5be877a2a280ae36eb9ab80ca4efb28bbf77c57abbba38137cdc37a03b8465e6 AS final-ubi
+
+COPY --from=runtime-staging-ubi /staging/ /
+
+ARG OCI_SOURCE_REPO
+ARG OCI_VERSION
+ARG OCI_REVISION
+
+ENV ORT_LIB_PATH=/opt/onnxruntime/lib/libonnxruntime.so.1.31.0 \
+    HOME=/home/inference \
+    XDG_CACHE_HOME=/var/cache
+
+LABEL org.opencontainers.image.version="${OCI_VERSION}" \
+      org.opencontainers.image.revision="${OCI_REVISION}" \
+      org.opencontainers.image.source="${OCI_SOURCE_REPO}" \
+      org.opencontainers.image.licenses="EPL-2.0" \
+      org.eclipse.iofog.inference.onnxruntime="1.31.0"
+
+USER 10001:10001
+WORKDIR /home/inference
+EXPOSE 8000 8001 8002
+ENTRYPOINT ["/usr/local/bin/inference"]
+
+FROM gcr.io/distroless/cc-debian13:nonroot@sha256:e792ab3d241a468a4fd7519ddbbebe66b49b5f365771716ea688ad40b6c6f1c2 AS final-distroless
+
+COPY --from=staging-cross /staging/ /
+
+ARG OCI_SOURCE_REPO
+ARG OCI_VERSION
+ARG OCI_REVISION
+
+ENV ORT_LIB_PATH=/opt/onnxruntime/lib/libonnxruntime.so.1.31.0 \
+    HOME=/home/inference \
+    XDG_CACHE_HOME=/var/cache
+
+LABEL org.opencontainers.image.version="${OCI_VERSION}" \
+      org.opencontainers.image.revision="${OCI_REVISION}" \
+      org.opencontainers.image.source="${OCI_SOURCE_REPO}" \
+      org.opencontainers.image.licenses="EPL-2.0" \
+      org.eclipse.iofog.inference.onnxruntime="1.31.0"
+
+USER 10001:10001
+WORKDIR /home/inference
+EXPOSE 8000 8001 8002
+ENTRYPOINT ["/usr/local/bin/inference"]

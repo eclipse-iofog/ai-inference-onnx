@@ -1,0 +1,259 @@
+# CUDA 13 engine image.
+# The runtime library comes from the onnxruntime build context.
+# CUDA 13.0.2 and cuDNN 9.14.0.64 are staged from the CUDA runtime image into UBI 9.8 Micro.
+# The image does not install a driver.
+
+FROM scratch AS onnxruntime
+
+FROM nvidia/cuda:13.0.2-cudnn-devel-ubi9@sha256:5a639207552c0322cf958b86149c7ab4d3d96b29eeb37ff523817c10b2afebc2 AS engine-ubi
+
+ARG TARGETARCH
+RUN dnf install -y --setopt=install_weak_deps=False \
+        gcc-toolset-14 \
+        gcc-toolset-14-gcc-c++ \
+        gcc-toolset-14-binutils \
+        ca-certificates \
+        curl \
+        tar \
+        gzip \
+    && case "$TARGETARCH" in \
+         amd64) go_sum=ccfe7ae822d2c2f41f4fe7c956199967a4dac22d0ee0d2b2bfdb440aab3b20c5 ;; \
+         arm64) go_sum=3f4227ce7b206a513e794f1393adb473a07b46e94d18bd15d1c684bbb7319797 ;; \
+         *) echo "no Go archive for ${TARGETARCH}" >&2; exit 1 ;; \
+       esac \
+    && curl -fsSL -o /tmp/go.tgz "https://go.dev/dl/go1.26.10.linux-${TARGETARCH}.tar.gz" \
+    && echo "${go_sum}  /tmp/go.tgz" | sha256sum -c - \
+    && rm -rf /usr/local/go \
+    && tar -C /usr/local -xzf /tmp/go.tgz \
+    && rm -f /tmp/go.tgz \
+    && dnf clean all \
+    && rm -rf /var/cache/dnf
+
+ENV PATH=/usr/local/go/bin:${PATH} \
+    GOTOOLCHAIN=local
+
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN set -eu; \
+    . /opt/rh/gcc-toolset-14/enable; \
+    mkdir -p /out; \
+    CGO_ENABLED=1 go build -trimpath -buildvcs=false -o /out/inference ./cmd/inference; \
+    if readelf -d /out/inference | grep -q 'libonnxruntime'; then \
+      echo "engine binary links the runtime library" >&2; \
+      exit 1; \
+    fi
+
+FROM nvidia/cuda:13.0.2-cudnn-runtime-ubi9@sha256:30cd1e776cc0d186b95d650b2b29f3ca2e11a2457b87b3be6d229b27f7b96d18 AS cuda-libs
+
+RUN bash <<'ENDSCRIPT'
+set -euo pipefail
+mkdir -p /out/lib /out/licenses
+copy_glob() {
+  dir=$1
+  pattern=$2
+  found=0
+  for f in "$dir"/$pattern; do
+    if [ -e "$f" ] || [ -L "$f" ]; then
+      cp -a "$f" /out/lib/
+      found=1
+    fi
+  done
+  if [ "$found" -ne 1 ]; then
+    echo "missing ${pattern} in ${dir}" >&2
+    exit 1
+  fi
+}
+copy_glob /usr/local/cuda/lib64 'libcudart.so*'
+copy_glob /usr/local/cuda/lib64 'libcublas.so*'
+copy_glob /usr/local/cuda/lib64 'libcublasLt.so*'
+copy_glob /usr/local/cuda/lib64 'libcufft.so*'
+copy_glob /usr/local/cuda/lib64 'libcurand.so*'
+copy_glob /usr/lib64 'libcudnn*.so.9*'
+for f in /out/lib/*; do
+  if [ -L "$f" ]; then
+    resolved=$(readlink -f "$f")
+    base=$(basename "$resolved")
+    if [ ! -e "/out/lib/$base" ]; then
+      cp -a "$resolved" "/out/lib/$base"
+    fi
+    ln -sfn "$base" "$f"
+  fi
+done
+for f in /out/lib/*; do
+  if [ -f "$f" ] && [ ! -L "$f" ]; then
+    chmod 0755 "$f"
+  fi
+done
+for banned in /out/lib/libcuda.so* /out/lib/libnvidia-ml.so*; do
+  if [ -e "$banned" ] || [ -L "$banned" ]; then
+    echo "driver library staged: $banned" >&2
+    exit 1
+  fi
+done
+license=$(echo /usr/share/licenses/cuda-cudart-*/LICENSE)
+if [ ! -f "$license" ]; then
+  echo "CUDA license is missing" >&2
+  exit 1
+fi
+cp -a "$license" /out/licenses/cuda-cudart-LICENSE
+ENDSCRIPT
+
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8@sha256:c4c285d42941ebb2bd4da878479008e1e4536bb599aad1dbe568f89de9053661 AS user-staging-ubi
+
+RUN microdnf install -y --setopt=install_weak_deps=0 \
+        shadow-utils \
+        ca-certificates \
+        libstdc++ \
+        zlib \
+    && microdnf clean all \
+    && test -e /usr/lib64/libstdc++.so.6 \
+    && test -e /usr/lib64/libz.so.1 \
+    && test -f /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem \
+    && groupadd --gid 10001 inference \
+    && useradd --uid 10001 --gid 10001 --home-dir /home/inference --no-create-home --shell /sbin/nologin inference
+
+FROM user-staging-ubi AS runtime-staging-ubi
+
+RUN microdnf install -y --setopt=install_weak_deps=0 binutils \
+    && microdnf clean all
+
+COPY --from=engine-ubi /out/inference /staging/usr/local/bin/inference
+COPY --from=onnxruntime /lib/ /staging/opt/onnxruntime/lib/
+COPY --from=onnxruntime /licenses/ /staging/licenses/
+COPY --from=cuda-libs /out/lib/ /staging/usr/lib64/
+COPY --from=cuda-libs /out/licenses/ /staging/licenses/
+
+RUN bash <<'ENDSCRIPT'
+set -euo pipefail
+mkdir -p \
+  /staging/etc/pki/ca-trust/extracted/pem \
+  /staging/etc/pki/tls/certs \
+  /staging/usr/lib64 \
+  /staging/usr/bin \
+  /staging/var/cache/inference/cuda \
+  /staging/home/inference
+cp -a /etc/passwd /etc/group /staging/etc/
+cp -a /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem /staging/etc/pki/ca-trust/extracted/pem/
+ln -s /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem /staging/etc/pki/tls/certs/ca-bundle.crt
+cp -a /usr/lib64/libstdc++.so.6 /usr/lib64/libstdc++.so.6.* /staging/usr/lib64/
+cp -a /usr/lib64/libz.so.1 /usr/lib64/libz.so.1.* /staging/usr/lib64/
+if [ -f /usr/share/licenses/zlib/LICENSE ]; then
+  cp -a /usr/share/licenses/zlib/LICENSE /staging/licenses/zlib-LICENSE
+fi
+chmod 0755 /staging/usr/local/bin/inference
+for lib in /staging/usr/lib64/* /staging/opt/onnxruntime/lib/*; do
+  if [ -f "$lib" ] && [ ! -L "$lib" ]; then
+    chmod 0755 "$lib"
+  fi
+done
+chown root:root /staging/usr/local/bin/inference
+chown -R root:root /staging/opt/onnxruntime/lib /staging/usr/lib64 /staging/licenses
+chown -R 10001:10001 /staging/var/cache/inference /staging/home/inference
+chmod 0750 /staging/var/cache/inference /staging/var/cache/inference/cuda /staging/home/inference
+check_ldd() {
+  local bin="$1" out line lib path base
+  out="$(ldd "$bin" 2>&1)" || { printf '%s\n' "$out" >&2; echo "$bin: ldd failed" >&2; return 1; }
+  while IFS= read -r line; do
+    case "$line" in
+      *'=> not found'*)
+        set -- $line
+        lib=$1
+        case "$lib" in
+          libcuda.so|libcuda.so.1|libnvidia-ml.so|libnvidia-ml.so.1) ;;
+          *)
+            printf '%s\n' "$out" >&2
+            echo "$bin: missing library $lib" >&2
+            return 1
+            ;;
+        esac
+        ;;
+      *'=> /'*)
+        set -- $line
+        path=$3
+        base=${path##*/}
+        case "$path" in
+          /staging/*) ;;
+          *)
+            case "$base" in
+              libc.so.6|libm.so.6|libdl.so.2|libpthread.so.0|librt.so.1|libgcc_s.so.1|ld-linux-*.so.*) ;;
+              *)
+                echo "$bin: $base is outside the staged root ($path)" >&2
+                return 1
+                ;;
+            esac
+            ;;
+        esac
+        ;;
+    esac
+  done <<EOF
+$out
+EOF
+}
+check_abi() {
+  local bin="$1" syms sym ver ceiling first
+  if readelf -d "$bin" | grep -E 'RPATH|RUNPATH' | grep -q '/opt/rh/'; then
+    echo "$bin: runtime path points at the compiler toolset" >&2
+    return 1
+  fi
+  syms="$(objdump -T "$bin" | grep '\*UND\*' | grep -oE 'GLIBC_[0-9]+\.[0-9]+|GLIBCXX_[0-9]+\.[0-9]+\.[0-9]+' | sort -u || true)"
+  for sym in $syms; do
+    case "$sym" in
+      GLIBC_*) ver="${sym#GLIBC_}"; ceiling=2.34 ;;
+      GLIBCXX_*) ver="${sym#GLIBCXX_}"; ceiling=3.4.29 ;;
+      *) continue ;;
+    esac
+    first="$(printf '%s\n%s\n' "$ceiling" "$ver" | sort -V | head -n 1)"
+    if [ "$first" = "$ceiling" ] && [ "$ver" != "$ceiling" ]; then
+      echo "$bin: needs a symbol newer than glibc 2.34 or GLIBCXX_3.4.29: $sym" >&2
+      return 1
+    fi
+  done
+}
+fail=0
+export LD_LIBRARY_PATH=/staging/usr/lib64:/staging/opt/onnxruntime/lib
+check_ldd /staging/usr/local/bin/inference || fail=1
+check_abi /staging/usr/local/bin/inference || fail=1
+if readelf -d /staging/usr/local/bin/inference | grep -q 'libonnxruntime'; then
+  echo "engine binary links the runtime library" >&2
+  fail=1
+fi
+for lib in /staging/usr/lib64/* /staging/opt/onnxruntime/lib/*; do
+  if [ -f "$lib" ] && [ ! -L "$lib" ]; then
+    check_ldd "$lib" || fail=1
+    check_abi "$lib" || fail=1
+  fi
+done
+test "$fail" -eq 0
+ENDSCRIPT
+
+FROM registry.access.redhat.com/ubi9/ubi-micro:9.8@sha256:5be877a2a280ae36eb9ab80ca4efb28bbf77c57abbba38137cdc37a03b8465e6 AS final-ubi
+
+COPY --from=runtime-staging-ubi /staging/ /
+
+ARG OCI_SOURCE_REPO
+ARG OCI_VERSION
+ARG OCI_REVISION
+ARG CUDA_VERSION=13.0.2
+ARG CUDNN_VERSION=9.14.0.64
+
+ENV ORT_LIB_PATH=/opt/onnxruntime/lib/libonnxruntime.so.1.31.0 \
+    HOME=/home/inference \
+    XDG_CACHE_HOME=/var/cache \
+    NVIDIA_VISIBLE_DEVICES=all \
+    NVIDIA_DRIVER_CAPABILITIES=compute,utility \
+    CUDA_CACHE_PATH=/var/cache/inference/cuda
+
+LABEL org.opencontainers.image.version="${OCI_VERSION}" \
+      org.opencontainers.image.revision="${OCI_REVISION}" \
+      org.opencontainers.image.source="${OCI_SOURCE_REPO}" \
+      org.opencontainers.image.licenses="EPL-2.0" \
+      org.eclipse.iofog.inference.onnxruntime="1.31.0" \
+      org.eclipse.iofog.inference.cuda="${CUDA_VERSION}" \
+      org.eclipse.iofog.inference.cudnn="${CUDNN_VERSION}"
+
+USER 10001:10001
+WORKDIR /home/inference
+EXPOSE 8000 8001 8002
+ENTRYPOINT ["/usr/local/bin/inference"]

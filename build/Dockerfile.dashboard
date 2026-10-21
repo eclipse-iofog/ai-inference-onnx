@@ -1,0 +1,59 @@
+# Dashboard image.
+# The binary is static. The final root is UBI 9.8 Micro, and the process writes no files.
+
+FROM --platform=$BUILDPLATFORM golang:1.26.10-trixie@sha256:7202554ed358a37f41c44e4910ae29bbc5ef0715f289ac637218adbb0ca132dd AS build
+
+ARG TARGETOS
+ARG TARGETARCH
+
+ENV CGO_ENABLED=0 \
+    GOTOOLCHAIN=local
+
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" go build -trimpath -buildvcs=false -o /out/dashboard ./cmd/dashboard
+
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8@sha256:c4c285d42941ebb2bd4da878479008e1e4536bb599aad1dbe568f89de9053661 AS user-staging
+
+RUN microdnf install -y --setopt=install_weak_deps=0 \
+        shadow-utils \
+        ca-certificates \
+    && microdnf clean all \
+    && test -f /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem \
+    && groupadd --gid 10001 dashboard \
+    && useradd --uid 10001 --gid 10001 --home-dir /home/dashboard --no-create-home --shell /sbin/nologin dashboard
+
+FROM user-staging AS runtime-staging
+
+COPY --from=build /out/dashboard /staging/usr/local/bin/dashboard
+COPY LICENSE /staging/licenses/LICENSE
+
+# UBI Micro ships the shell. The staged root leaves it in place.
+RUN set -eu; \
+    mkdir -p \
+      /staging/etc/pki/ca-trust/extracted/pem \
+      /staging/etc/pki/tls/certs; \
+    cp -a /etc/passwd /etc/group /staging/etc/; \
+    cp -a /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem /staging/etc/pki/ca-trust/extracted/pem/; \
+    ln -s /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem /staging/etc/pki/tls/certs/ca-bundle.crt; \
+    chmod 0755 /staging/usr/local/bin/dashboard; \
+    chown root:root /staging/usr/local/bin/dashboard /staging/licenses/LICENSE
+
+FROM registry.access.redhat.com/ubi9/ubi-micro:9.8@sha256:5be877a2a280ae36eb9ab80ca4efb28bbf77c57abbba38137cdc37a03b8465e6 AS final
+
+COPY --from=runtime-staging /staging/ /
+
+ARG OCI_SOURCE_REPO
+ARG OCI_VERSION
+ARG OCI_REVISION
+
+LABEL org.opencontainers.image.version="${OCI_VERSION}" \
+      org.opencontainers.image.revision="${OCI_REVISION}" \
+      org.opencontainers.image.source="${OCI_SOURCE_REPO}" \
+      org.opencontainers.image.licenses="EPL-2.0"
+
+USER 10001:10001
+EXPOSE 8080
+ENTRYPOINT ["/usr/local/bin/dashboard"]

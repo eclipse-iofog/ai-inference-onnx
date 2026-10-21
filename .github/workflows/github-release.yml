@@ -1,0 +1,230 @@
+name: GitHub release
+
+# An engine tag and a dashboard tag each publish a GitHub release.
+# The body is the changelog section for that tag. Attached files are signed blob by blob.
+
+on:
+  push:
+    tags:
+      - "v*"
+      - "dashboard/v*"
+
+permissions: read-all
+
+jobs:
+  release:
+    name: GitHub release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Write the release notes
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          IMAGE_REGISTRY: ${{ vars.IMAGE_REGISTRY }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          ./scripts/changelog-section.sh "$REF_NAME" > release_notes.md
+
+          registry="${IMAGE_REGISTRY:-}"
+          if [ -z "$registry" ]; then
+            case "${GITHUB_REPOSITORY}" in
+              eclipse-iofog/ai-inference-onnx)
+                registry="ghcr.io/eclipse-iofog"
+                ;;
+              *)
+                registry="ghcr.io/datasance"
+                ;;
+            esac
+          fi
+          registry="${registry%/}"
+          if [ -z "$registry" ]; then
+            echo "IMAGE_REGISTRY is empty" >&2
+            exit 1
+          fi
+          echo "IMAGE_REGISTRY=${registry}" >> "$GITHUB_ENV"
+
+          recorded() {
+            local want="$1" line variant
+            [ -f build/onnxruntime/runtime-images.txt ] || return 1
+            while IFS= read -r raw || [ -n "$raw" ]; do
+              line="${raw#"${raw%%[![:space:]]*}"}"
+              line="${line%"${line##*[![:space:]]}"}"
+              case "$line" in
+                ""|\#*) continue ;;
+              esac
+              variant="${line%% *}"
+              if [ "$variant" = "$want" ]; then
+                return 0
+              fi
+            done < build/onnxruntime/runtime-images.txt
+            return 1
+          }
+
+          case "$REF_NAME" in
+            dashboard/v*)
+              version="${REF_NAME#dashboard/v}"
+              kind="dashboard"
+              ;;
+            v*)
+              version="${REF_NAME#v}"
+              kind="engine"
+              ;;
+            *)
+              echo "tag is not an engine or dashboard release" >&2
+              exit 1
+              ;;
+          esac
+          if [ -z "$version" ] || [ "$version" = "$REF_NAME" ]; then
+            echo "release version is empty" >&2
+            exit 1
+          fi
+          if ! printf '%s\n' "$version" | grep -Eq '^[A-Za-z0-9_][A-Za-z0-9_.-]{0,80}$'; then
+            echo "release version is not an image tag" >&2
+            exit 1
+          fi
+
+          {
+            printf '\n## Images\n\n'
+            printf 'A tag publishes only this remote.\n'
+          } >> release_notes.md
+
+          if [ "$kind" = "dashboard" ]; then
+            image="${registry}/ai-inference-dashboard"
+            identity="https://github.com/${GITHUB_REPOSITORY}/.github/workflows/dashboard-release.yml@refs/tags/${REF_NAME}"
+            {
+              printf '\n`%s:%s`\n\n' "$image" "$version"
+              printf 'The dashboard image does not link ONNX Runtime.\n\n'
+              printf '```bash\n'
+              printf 'docker pull %s:%s\n' "$image" "$version"
+              printf '```\n'
+              printf '\n## Verify\n\n'
+              printf 'The signature is on the image digest this tag resolves to.\n\n'
+              printf '```bash\n'
+              printf 'cosign verify \\\n'
+              printf '  --certificate-identity %s \\\n' "$identity"
+              printf '  --certificate-oidc-issuer https://token.actions.githubusercontent.com \\\n'
+              printf '  %s:%s\n' "$image" "$version"
+              printf '```\n'
+            } >> release_notes.md
+            exit 0
+          fi
+
+          if ! recorded cpu; then
+            echo "cpu runtime is not recorded in runtime-images.txt" >&2
+            exit 1
+          fi
+
+          engine="${registry}/ai-inference-onnx"
+          identity="https://github.com/${GITHUB_REPOSITORY}/.github/workflows/release.yml@refs/tags/${REF_NAME}"
+          verify_refs=""
+
+          emit() {
+            local variant="$1" pin="$2" built="$3" tag
+            tag="${version}-ort1.31.0-${variant}"
+            if [ "$built" = "yes" ]; then
+              verify_refs="${verify_refs} ${engine}:${tag}"
+            fi
+            {
+              printf '\n### %s\n\n' "$variant"
+              printf '`%s:%s`. %s\n' "$engine" "$tag" "$pin"
+              if [ "$built" = "yes" ]; then
+                printf '\n```bash\n'
+                printf 'docker pull %s:%s\n' "$engine" "$tag"
+                printf '```\n'
+              else
+                printf '\n%s is not built.\n' "$variant"
+              fi
+            } >> release_notes.md
+          }
+
+          flag() {
+            if recorded "$1"; then
+              printf 'yes'
+            else
+              printf 'no'
+            fi
+          }
+
+          emit cpu "ONNX Runtime 1.31.0. No accelerator SDK. Platforms are amd64, arm64, and riscv64." yes
+          emit cuda12 "CUDA 12.8.1, cuDNN 9.8.0.87." "$(flag cuda12)"
+          emit cuda13 "CUDA 13.0.2, cuDNN 9.14.0.64." "$(flag cuda13)"
+          emit tensorrt12 "TensorRT 10.14.1.48, then CUDA. CUDA 12.9.1, cuDNN 9.10.2.21." "$(flag tensorrt12)"
+          emit tensorrt13 "amd64 is TensorRT 10.14.1.48, CUDA 13.0.2, cuDNN 9.14.0.64. arm64 is TensorRT 10.15.1.29, CUDA 13.1.2, cuDNN 9.17.1.4." "$(flag tensorrt13)"
+          emit qnn "QNN 2.42.0.251225, HTP backend." "$(flag qnn)"
+          emit openvino "OpenVINO 2026.2.1." "$(flag openvino)"
+          emit migraphx "MIGraphX on ROCm 7.1." "$(flag migraphx)"
+
+          {
+            printf '\nAccelerator runtimes ship inside the image.\n'
+            printf '\n## Verify\n\n'
+            printf 'The signature is on the image digest this tag resolves to.\n\n'
+            printf '```bash\n'
+          } >> release_notes.md
+          for image_ref in $verify_refs; do
+            {
+              printf 'cosign verify \\\n'
+              printf '  --certificate-identity %s \\\n' "$identity"
+              printf '  --certificate-oidc-issuer https://token.actions.githubusercontent.com \\\n'
+              printf '  %s\n' "$image_ref"
+            } >> release_notes.md
+          done
+          {
+            printf '```\n'
+            printf '\nEach attached file has a `.sigstore` bundle.\n\n'
+            printf '```bash\n'
+            printf 'cosign verify-blob --bundle onnxruntime-1.31.0-linux-amd64.tar.gz.sigstore onnxruntime-1.31.0-linux-amd64.tar.gz\n'
+            printf 'cosign verify-blob --bundle onnxruntime-1.31.0-linux-arm64.tar.gz.sigstore onnxruntime-1.31.0-linux-arm64.tar.gz\n'
+            printf 'cosign verify-blob --bundle onnxruntime-1.31.0-linux-riscv64.tar.gz.sigstore onnxruntime-1.31.0-linux-riscv64.tar.gz\n'
+            printf '```\n'
+          } >> release_notes.md
+
+      - name: Install cosign
+        if: ${{ !startsWith(github.ref_name, 'dashboard/') }}
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Pack the CPU runtime archives
+        if: ${{ !startsWith(github.ref_name, 'dashboard/') }}
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          if [ -z "${IMAGE_REGISTRY:-}" ]; then
+            echo "IMAGE_REGISTRY is empty" >&2
+            exit 1
+          fi
+          ./scripts/cpu-runtime-archive.sh dist
+
+      - name: Sign the release files
+        if: ${{ !startsWith(github.ref_name, 'dashboard/') }}
+        run: |
+          set -euo pipefail
+          names="onnxruntime-1.31.0-linux-amd64.tar.gz onnxruntime-1.31.0-linux-arm64.tar.gz onnxruntime-1.31.0-linux-riscv64.tar.gz"
+          for name in $names; do
+            test -f "dist/${name}"
+            cosign sign-blob --yes \
+              --bundle "dist/${name}.sigstore" \
+              "dist/${name}"
+            test -f "dist/${name}.sigstore"
+          done
+
+      - name: Publish the engine release
+        if: ${{ !startsWith(github.ref_name, 'dashboard/') }}
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
+        with:
+          body_path: release_notes.md
+          files: dist/*
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+
+      - name: Publish the dashboard release
+        if: ${{ startsWith(github.ref_name, 'dashboard/') }}
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
+        with:
+          body_path: release_notes.md
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}

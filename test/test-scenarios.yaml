@@ -1,0 +1,39 @@
+apiVersion: datasance.com/v3        # iofog.org/v3
+kind: Microservice
+metadata:
+  name: scenarios
+spec:
+  application: inference
+  agent:
+    name: lab-raspi
+  images:
+    registry: remote
+    amd64: emirhandurmus/ai-inference-onnx-scenarios:0.1.0
+    arm64: emirhandurmus/ai-inference-onnx-scenarios:0.1.0
+  natsConfig:
+    natsAccess: true
+    natsRule: default-user
+  container:
+    runAsUser: "10001"
+    runAsGroup: "10001"
+    readOnlyRootFilesystem: true
+    tmpfs:
+      - containerPath: /tmp
+        size: 64
+        mode: "1777"
+    env:
+      - key: INFERENCE_HTTP_URL
+        value: http://inference.engine:8000
+      - key: INFERENCE_GRPC_TARGET
+        value: inference.engine:8001
+      - key: SERVICEACCOUNT_PATH
+        value: /var/run/secrets/edgelet.iofog.org/serviceaccount
+    commands:
+      - /bin/sh
+      - "-c"
+      - trap true INT TERM; sleep infinity & wait
+    healthCheck: {}
+  serviceAccount:
+    roleRef:
+      kind: Role
+      name: inference-user

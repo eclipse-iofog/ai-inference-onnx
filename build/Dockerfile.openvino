@@ -1,0 +1,259 @@
+# OpenVINO engine image.
+# The runtime library comes from the onnxruntime build context.
+# OpenVINO 2026.2.1 runs on the CPU device. Its libraries are staged from the RHEL 8 archive.
+
+FROM scratch AS onnxruntime
+
+FROM registry.access.redhat.com/ubi9/ubi:9.8@sha256:16e9e43d99e181463513cc84a514859b1abb9460f1c4d9e208da4b4e51cd5cc3 AS engine-ubi
+
+ARG TARGETARCH
+RUN if [ "$TARGETARCH" != amd64 ]; then echo "OpenVINO is built for amd64" >&2; exit 1; fi
+RUN dnf install -y --setopt=install_weak_deps=False \
+        gcc-toolset-14 \
+        gcc-toolset-14-gcc-c++ \
+        gcc-toolset-14-binutils \
+        ca-certificates \
+        curl \
+        tar \
+        gzip \
+    && go_sum=ccfe7ae822d2c2f41f4fe7c956199967a4dac22d0ee0d2b2bfdb440aab3b20c5 \
+    && curl -fsSL -o /tmp/go.tgz "https://go.dev/dl/go1.26.10.linux-amd64.tar.gz" \
+    && echo "${go_sum}  /tmp/go.tgz" | sha256sum -c - \
+    && rm -rf /usr/local/go \
+    && tar -C /usr/local -xzf /tmp/go.tgz \
+    && rm -f /tmp/go.tgz \
+    && dnf clean all \
+    && rm -rf /var/cache/dnf
+
+ENV PATH=/usr/local/go/bin:${PATH} \
+    GOTOOLCHAIN=local
+
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN set -eu; \
+    . /opt/rh/gcc-toolset-14/enable; \
+    mkdir -p /out; \
+    CGO_ENABLED=1 go build -trimpath -buildvcs=false -o /out/inference ./cmd/inference; \
+    if readelf -d /out/inference | grep -q 'libonnxruntime'; then \
+      echo "engine binary links the runtime library" >&2; \
+      exit 1; \
+    fi
+
+FROM registry.access.redhat.com/ubi9/ubi:9.8@sha256:16e9e43d99e181463513cc84a514859b1abb9460f1c4d9e208da4b4e51cd5cc3 AS openvino-libs
+
+ARG OPENVINO_VERSION=2026.2.1
+ARG OPENVINO_URL=https://storage.openvinotoolkit.org/repositories/openvino/packages/2026.2.1/linux/openvino_toolkit_rhel8_2026.2.1.21919.ede283a88e3_x86_64.tgz
+ARG OPENVINO_SHA256=cf7a3eb84a1edbd852f719a4ba8c15dbf02a3744ab61488b6cae44747d90bf78
+
+RUN dnf install -y --setopt=install_weak_deps=False ca-certificates curl tar gzip findutils \
+    && dnf clean all \
+    && rm -rf /var/cache/dnf
+
+RUN OPENVINO_VERSION="$OPENVINO_VERSION" OPENVINO_URL="$OPENVINO_URL" OPENVINO_SHA256="$OPENVINO_SHA256" bash <<'ENDSCRIPT'
+set -euo pipefail
+curl -fsSL -o /tmp/openvino.tgz "$OPENVINO_URL"
+echo "${OPENVINO_SHA256}  /tmp/openvino.tgz" | sha256sum -c -
+mkdir -p /tmp/openvino-src /out/lib /out/licenses
+tar -C /tmp/openvino-src -xzf /tmp/openvino.tgz
+rm -f /tmp/openvino.tgz
+src=$(find /tmp/openvino-src -mindepth 1 -maxdepth 1 -type d -print -quit)
+test -n "$src"
+test -f "$src/runtime/version.txt"
+grep -q "^${OPENVINO_VERSION}" "$src/runtime/version.txt"
+lib="$src/runtime/lib/intel64"
+tbb="$src/runtime/3rdparty/tbb/lib"
+for name in \
+  libopenvino.so \
+  libopenvino_c.so \
+  libopenvino_onnx_frontend.so \
+  libopenvino_ir_frontend.so.2026.2.1 \
+  libopenvino_intel_cpu_plugin.so
+do
+  if [ ! -e "$lib/$name" ]; then
+    echo "OpenVINO archive is missing $name" >&2
+    exit 1
+  fi
+done
+shopt -s nullglob
+for name in \
+  libopenvino.so libopenvino.so.* \
+  libopenvino_c.so libopenvino_c.so.* \
+  libopenvino_onnx_frontend.so libopenvino_onnx_frontend.so.* \
+  libopenvino_ir_frontend.so libopenvino_ir_frontend.so.* \
+  libopenvino_intel_cpu_plugin.so
+do
+  for f in "$lib"/$name; do
+    cp -a "$f" /out/lib/
+  done
+done
+for f in "$tbb"/lib*.so*; do
+  cp -a "$f" /out/lib/
+done
+shopt -u nullglob
+for f in /out/lib/*; do
+  if [ -L "$f" ]; then
+    resolved=$(readlink -f "$f")
+    base=$(basename "$resolved")
+    if [ ! -e "/out/lib/$base" ]; then
+      cp -a "$resolved" "/out/lib/$base"
+    fi
+    ln -sfn "$base" "$f"
+  elif [ -f "$f" ]; then
+    chmod 0755 "$f"
+  fi
+done
+test -e /out/lib/libopenvino.so
+test -e /out/lib/libopenvino_intel_cpu_plugin.so
+test -e /out/lib/libtbb.so.12
+if [ -f "$src/docs/licensing/LICENSE" ]; then
+  cp -a "$src/docs/licensing/LICENSE" /out/licenses/openvino-LICENSE
+fi
+if [ -f "$src/runtime/3rdparty/tbb/TBB-LICENSE" ]; then
+  cp -a "$src/runtime/3rdparty/tbb/TBB-LICENSE" /out/licenses/tbb-LICENSE
+fi
+rm -rf /tmp/openvino-src
+ENDSCRIPT
+
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8@sha256:c4c285d42941ebb2bd4da878479008e1e4536bb599aad1dbe568f89de9053661 AS user-staging-ubi
+
+RUN microdnf install -y --setopt=install_weak_deps=0 \
+        shadow-utils \
+        ca-certificates \
+        libstdc++ \
+    && microdnf clean all \
+    && test -e /usr/lib64/libstdc++.so.6 \
+    && test -f /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem \
+    && groupadd --gid 10001 inference \
+    && useradd --uid 10001 --gid 10001 --home-dir /home/inference --no-create-home --shell /sbin/nologin inference
+
+FROM user-staging-ubi AS runtime-staging-ubi
+
+RUN microdnf install -y --setopt=install_weak_deps=0 binutils \
+    && microdnf clean all
+
+COPY --from=engine-ubi /out/inference /staging/usr/local/bin/inference
+COPY --from=onnxruntime /lib/ /staging/opt/onnxruntime/lib/
+COPY --from=onnxruntime /licenses/ /staging/licenses/
+COPY --from=openvino-libs /out/lib/ /staging/usr/lib64/
+COPY --from=openvino-libs /out/licenses/ /staging/licenses/
+
+RUN bash <<'ENDSCRIPT'
+set -euo pipefail
+mkdir -p \
+  /staging/etc/pki/ca-trust/extracted/pem \
+  /staging/etc/pki/tls/certs \
+  /staging/usr/lib64 \
+  /staging/usr/bin \
+  /staging/var/cache/inference \
+  /staging/home/inference
+cp -a /etc/passwd /etc/group /staging/etc/
+cp -a /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem /staging/etc/pki/ca-trust/extracted/pem/
+ln -s /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem /staging/etc/pki/tls/certs/ca-bundle.crt
+cp -a /usr/lib64/libstdc++.so.6 /usr/lib64/libstdc++.so.6.* /staging/usr/lib64/
+chmod 0755 /staging/usr/local/bin/inference
+for lib in /staging/usr/lib64/* /staging/opt/onnxruntime/lib/*; do
+  if [ -f "$lib" ] && [ ! -L "$lib" ]; then
+    chmod 0755 "$lib"
+  fi
+done
+chown root:root /staging/usr/local/bin/inference
+chown -R root:root /staging/opt/onnxruntime/lib /staging/usr/lib64 /staging/licenses
+chown -R 10001:10001 /staging/var/cache/inference /staging/home/inference
+chmod 0750 /staging/var/cache/inference /staging/home/inference
+test -e /staging/usr/lib64/libopenvino.so
+test -e /staging/usr/lib64/libopenvino_intel_cpu_plugin.so
+check_ldd() {
+  local bin="$1" out line path base
+  out="$(ldd "$bin" 2>&1)" || { printf '%s\n' "$out" >&2; echo "$bin: ldd failed" >&2; return 1; }
+  while IFS= read -r line; do
+    case "$line" in
+      *'=> not found'*)
+        printf '%s\n' "$out" >&2
+        echo "$bin: missing library" >&2
+        return 1
+        ;;
+      *'=> /'*)
+        set -- $line
+        path=$3
+        base=${path##*/}
+        case "$path" in
+          /staging/*) ;;
+          *)
+            case "$base" in
+              libc.so.6|libm.so.6|libdl.so.2|libpthread.so.0|librt.so.1|libgcc_s.so.1|ld-linux-*.so.*) ;;
+              *)
+                echo "$bin: $base is outside the staged root ($path)" >&2
+                return 1
+                ;;
+            esac
+            ;;
+        esac
+        ;;
+    esac
+  done <<EOF
+$out
+EOF
+}
+check_abi() {
+  local bin="$1" syms sym ver ceiling first
+  if readelf -d "$bin" | grep -E 'RPATH|RUNPATH' | grep -q '/opt/rh/'; then
+    echo "$bin: runtime path points at the compiler toolset" >&2
+    return 1
+  fi
+  syms="$(objdump -T "$bin" | grep '\*UND\*' | grep -oE 'GLIBC_[0-9]+\.[0-9]+|GLIBCXX_[0-9]+\.[0-9]+\.[0-9]+' | sort -u || true)"
+  for sym in $syms; do
+    case "$sym" in
+      GLIBC_*) ver="${sym#GLIBC_}"; ceiling=2.34 ;;
+      GLIBCXX_*) ver="${sym#GLIBCXX_}"; ceiling=3.4.29 ;;
+      *) continue ;;
+    esac
+    first="$(printf '%s\n%s\n' "$ceiling" "$ver" | sort -V | head -n 1)"
+    if [ "$first" = "$ceiling" ] && [ "$ver" != "$ceiling" ]; then
+      echo "$bin: needs a symbol newer than glibc 2.34 or GLIBCXX_3.4.29: $sym" >&2
+      return 1
+    fi
+  done
+}
+fail=0
+export LD_LIBRARY_PATH=/staging/usr/lib64:/staging/opt/onnxruntime/lib
+check_ldd /staging/usr/local/bin/inference || fail=1
+check_abi /staging/usr/local/bin/inference || fail=1
+if readelf -d /staging/usr/local/bin/inference | grep -q 'libonnxruntime'; then
+  echo "engine binary links the runtime library" >&2
+  fail=1
+fi
+for lib in /staging/usr/lib64/* /staging/opt/onnxruntime/lib/*; do
+  if [ -f "$lib" ] && [ ! -L "$lib" ]; then
+    check_ldd "$lib" || fail=1
+    check_abi "$lib" || fail=1
+  fi
+done
+test "$fail" -eq 0
+ENDSCRIPT
+
+FROM registry.access.redhat.com/ubi9/ubi-micro:9.8@sha256:5be877a2a280ae36eb9ab80ca4efb28bbf77c57abbba38137cdc37a03b8465e6 AS final-ubi
+
+COPY --from=runtime-staging-ubi /staging/ /
+
+ARG OCI_SOURCE_REPO
+ARG OCI_VERSION
+ARG OCI_REVISION
+ARG OPENVINO_VERSION=2026.2.1
+
+ENV ORT_LIB_PATH=/opt/onnxruntime/lib/libonnxruntime.so.1.31.0 \
+    HOME=/home/inference \
+    XDG_CACHE_HOME=/var/cache
+
+LABEL org.opencontainers.image.version="${OCI_VERSION}" \
+      org.opencontainers.image.revision="${OCI_REVISION}" \
+      org.opencontainers.image.source="${OCI_SOURCE_REPO}" \
+      org.opencontainers.image.licenses="EPL-2.0" \
+      org.eclipse.iofog.inference.onnxruntime="1.31.0" \
+      org.eclipse.iofog.inference.openvino="${OPENVINO_VERSION}"
+
+USER 10001:10001
+WORKDIR /home/inference
+EXPOSE 8000 8001 8002
+ENTRYPOINT ["/usr/local/bin/inference"]

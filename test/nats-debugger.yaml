@@ -1,0 +1,25 @@
+apiVersion: datasance.com/v3        # iofog.org/v3
+kind: Microservice
+metadata:
+  name: box-1
+spec:
+  agent:
+    name: lab-raspi
+  images:
+    registry: 1
+    amd64: natsio/nats-box:latest
+    arm64: natsio/nats-box:latest
+  container:
+    extraHosts: []
+    ports: []
+    cpuSetCpus: ''
+    commands:
+      - /bin/sh
+      - '-c'
+      - trap true INT TERM; sleep infinity & wait
+    healthCheck: {}
+  natsConfig:
+    natsAccess: true
+    natsRule: default-user
+  config: {}
+  application: inference

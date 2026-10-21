@@ -1,0 +1,9 @@
+apiVersion: datasance.com/v3        # iofog.org/v3
+kind: Model
+metadata:
+  name: wafer-defect
+spec:
+  repo: ghcr.io/datasance/pot-edge-patterns/models/wafer-defect
+  revision: sha256:735e4688b0b797224dab8da8758ac767b5cb131035e4a5c895c8d68b91f96298
+  registryId: 1
+  format: onnx

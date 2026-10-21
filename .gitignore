@@ -1,0 +1,4 @@
+.cursor
+test/scenarios/.build/
+test/scenarios/assets/wafers/wafer-scratch-001.f32
+test/scenarios/assets/wafers/wafer-scratch-001.txt

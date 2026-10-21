@@ -1,0 +1,174 @@
+# TensorRT 13 ONNX Runtime 1.31.0.
+# amd64 compiles on the CUDA 13.0.2 UBI 9 development image with TensorRT 10.14.1.48.
+# arm64 compiles on the CUDA 13.1.2 UBI 9 development image with TensorRT 10.15.1.29.
+# The scratch image keeps this runtime and its provider libraries.
+# CUDA, cuDNN, and TensorRT are staged by the engine image.
+
+FROM nvidia/cuda:13.0.2-cudnn-devel-ubi9@sha256:5a639207552c0322cf958b86149c7ab4d3d96b29eeb37ff523817c10b2afebc2 AS build-amd64
+
+ARG TARGETARCH
+ARG TENSORRT_VERSION=10.14.1.48
+ARG TENSORRT_URL=https://developer.nvidia.com/downloads/compute/machine-learning/tensorrt/10.14.1/tars/TensorRT-10.14.1.48.Linux.x86_64-gnu.cuda-13.0.tar.gz
+ARG TENSORRT_SHA256=c74af67db57f1a0d7e66bb01ab93f1ecda5facac491ca76e680d832f1e035ce6
+
+RUN test "$TARGETARCH" = amd64
+RUN dnf install -y --setopt=install_weak_deps=False \
+        gcc-toolset-14 \
+        gcc-toolset-14-gcc-c++ \
+        gcc-toolset-14-binutils \
+        binutils \
+        python3 \
+        python3.12 \
+        git \
+        make \
+        ca-certificates \
+        curl \
+        tar \
+        gzip \
+        findutils \
+        patch \
+        zlib-devel \
+    && cmake_sum=312d78e0b7c5c9b4a97a87a46c3e525aa84895fe8135c238c4616bba73dc9518 \
+    && curl -fsSL -o /tmp/cmake.tgz \
+         "https://github.com/Kitware/CMake/releases/download/v3.31.9/cmake-3.31.9-linux-x86_64.tar.gz" \
+    && echo "${cmake_sum}  /tmp/cmake.tgz" | sha256sum -c - \
+    && tar -C /usr/local --strip-components=1 -xzf /tmp/cmake.tgz \
+    && rm -f /tmp/cmake.tgz \
+    && dnf clean all \
+    && rm -rf /var/cache/dnf
+
+COPY scripts/build-onnxruntime.sh /usr/local/bin/build-onnxruntime.sh
+
+RUN TENSORRT_VERSION="$TENSORRT_VERSION" TENSORRT_URL="$TENSORRT_URL" TENSORRT_SHA256="$TENSORRT_SHA256" bash <<'ENDSCRIPT'
+set -euo pipefail
+root="/usr/local/tensorrt-${TENSORRT_VERSION}"
+curl -fsSL -o /tmp/tensorrt.tar.gz "$TENSORRT_URL"
+echo "${TENSORRT_SHA256}  /tmp/tensorrt.tar.gz" | sha256sum -c -
+mkdir -p /tmp/tensorrt-src
+tar -C /tmp/tensorrt-src -xzf /tmp/tensorrt.tar.gz \
+  --wildcards \
+  '*/include/*' \
+  '*/lib/*.so' \
+  '*/lib/*.so.*' \
+  '*/targets/*/include/*' \
+  '*/targets/*/lib/*.so' \
+  '*/targets/*/lib/*.so.*'
+rm -f /tmp/tensorrt.tar.gz
+src=$(find /tmp/tensorrt-src -mindepth 1 -maxdepth 1 -type d -print -quit)
+mkdir -p "$root/include" "$root/lib"
+if [ -d "$src/include" ]; then cp -a "$src/include/." "$root/include/"; fi
+if [ -d "$src/lib" ]; then cp -a "$src/lib/." "$root/lib/"; fi
+for d in "$src"/targets/*/include; do
+  [ -d "$d" ] || continue
+  cp -a "$d/." "$root/include/"
+done
+for d in "$src"/targets/*/lib; do
+  [ -d "$d" ] || continue
+  cp -a "$d/." "$root/lib/"
+done
+find "$root" -name '*win*' -delete
+for f in "$root/lib"/*; do
+  [ -e "$f" ] || [ -L "$f" ] || continue
+  [ -L "$f" ] || continue
+  resolved=$(readlink -f "$f")
+  base=$(basename "$resolved")
+  if [ ! -e "$root/lib/$base" ]; then
+    cp -a "$resolved" "$root/lib/$base"
+  fi
+  ln -sfn "$base" "$f"
+done
+test -f "$root/include/NvInfer.h"
+test -e "$root/lib/libnvinfer.so.10"
+rm -rf /tmp/tensorrt-src
+ENDSCRIPT
+
+RUN build-onnxruntime.sh tensorrt13 amd64
+
+FROM nvidia/cuda:13.1.2-cudnn-devel-ubi9@sha256:e58c8ebbe874975327026dd2829f0d11ca18df32de0348f3999a2958245e2cb9 AS build-arm64
+
+ARG TARGETARCH
+ARG TENSORRT_VERSION=10.15.1.29
+ARG TENSORRT_URL=https://developer.nvidia.com/downloads/compute/machine-learning/tensorrt/10.15.1/tars/TensorRT-10.15.1.29.Linux.aarch64-gnu.cuda-13.1.tar.gz
+ARG TENSORRT_SHA256=df0c112a4d66bd8ef890697297e01558d7338d5c4ac85d4078e814e506bd6da2
+
+RUN test "$TARGETARCH" = arm64
+RUN dnf install -y --setopt=install_weak_deps=False \
+        gcc-toolset-14 \
+        gcc-toolset-14-gcc-c++ \
+        gcc-toolset-14-binutils \
+        binutils \
+        python3 \
+        python3.12 \
+        git \
+        make \
+        ca-certificates \
+        curl \
+        tar \
+        gzip \
+        findutils \
+        patch \
+        zlib-devel \
+    && cmake_sum=09b7127b09e3d3ed5fa894f4e59f6a01112f267da6acc4249e46dba97b14afcb \
+    && curl -fsSL -o /tmp/cmake.tgz \
+         "https://github.com/Kitware/CMake/releases/download/v3.31.9/cmake-3.31.9-linux-aarch64.tar.gz" \
+    && echo "${cmake_sum}  /tmp/cmake.tgz" | sha256sum -c - \
+    && tar -C /usr/local --strip-components=1 -xzf /tmp/cmake.tgz \
+    && rm -f /tmp/cmake.tgz \
+    && dnf clean all \
+    && rm -rf /var/cache/dnf
+
+COPY scripts/build-onnxruntime.sh /usr/local/bin/build-onnxruntime.sh
+
+RUN TENSORRT_VERSION="$TENSORRT_VERSION" TENSORRT_URL="$TENSORRT_URL" TENSORRT_SHA256="$TENSORRT_SHA256" bash <<'ENDSCRIPT'
+set -euo pipefail
+root="/usr/local/tensorrt-${TENSORRT_VERSION}"
+curl -fsSL -o /tmp/tensorrt.tar.gz "$TENSORRT_URL"
+echo "${TENSORRT_SHA256}  /tmp/tensorrt.tar.gz" | sha256sum -c -
+mkdir -p /tmp/tensorrt-src
+tar -C /tmp/tensorrt-src -xzf /tmp/tensorrt.tar.gz \
+  --wildcards \
+  '*/include/*' \
+  '*/lib/*.so' \
+  '*/lib/*.so.*' \
+  '*/targets/*/include/*' \
+  '*/targets/*/lib/*.so' \
+  '*/targets/*/lib/*.so.*'
+rm -f /tmp/tensorrt.tar.gz
+src=$(find /tmp/tensorrt-src -mindepth 1 -maxdepth 1 -type d -print -quit)
+mkdir -p "$root/include" "$root/lib"
+if [ -d "$src/include" ]; then cp -a "$src/include/." "$root/include/"; fi
+if [ -d "$src/lib" ]; then cp -a "$src/lib/." "$root/lib/"; fi
+for d in "$src"/targets/*/include; do
+  [ -d "$d" ] || continue
+  cp -a "$d/." "$root/include/"
+done
+for d in "$src"/targets/*/lib; do
+  [ -d "$d" ] || continue
+  cp -a "$d/." "$root/lib/"
+done
+find "$root" -name '*win*' -delete
+for f in "$root/lib"/*; do
+  [ -e "$f" ] || [ -L "$f" ] || continue
+  [ -L "$f" ] || continue
+  resolved=$(readlink -f "$f")
+  base=$(basename "$resolved")
+  if [ ! -e "$root/lib/$base" ]; then
+    cp -a "$resolved" "$root/lib/$base"
+  fi
+  ln -sfn "$base" "$f"
+done
+test -f "$root/include/NvInfer.h"
+test -e "$root/lib/libnvinfer.so.10"
+rm -rf /tmp/tensorrt-src
+ENDSCRIPT
+
+RUN build-onnxruntime.sh tensorrt13 arm64
+
+FROM build-${TARGETARCH} AS build
+
+FROM scratch AS runtime
+COPY --from=build /opt/onnxruntime/lib/ /lib/
+COPY --from=build /opt/onnxruntime/include/ /include/
+COPY --from=build /opt/onnxruntime/licenses/ /licenses/
+COPY --from=build /opt/onnxruntime/VERSION /VERSION
+COPY --from=build /opt/onnxruntime/COMMIT /COMMIT

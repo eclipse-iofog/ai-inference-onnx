@@ -1,0 +1,134 @@
+# QNN ONNX Runtime 1.31.0.
+# arm64 compiles on UBI 9 with GCC 14.
+# The SDK arrives as the QNN_SDK_URL and QNN_SDK_SHA256 secrets.
+# The scratch image keeps this runtime, its provider, and the HTP backend libraries.
+
+FROM registry.access.redhat.com/ubi9/ubi:9.8@sha256:16e9e43d99e181463513cc84a514859b1abb9460f1c4d9e208da4b4e51cd5cc3 AS build-ubi
+
+ARG TARGETARCH
+ARG QNN_VERSION=2.42.0.251225
+
+RUN if [ "$TARGETARCH" != arm64 ]; then echo "QNN is built for arm64" >&2; exit 1; fi
+RUN dnf install -y --setopt=install_weak_deps=False \
+        gcc-toolset-14 \
+        gcc-toolset-14-gcc-c++ \
+        gcc-toolset-14-binutils \
+        binutils \
+        python3 \
+        python3.12 \
+        git \
+        make \
+        ca-certificates \
+        curl \
+        tar \
+        gzip \
+        unzip \
+        findutils \
+        patch \
+        zlib-devel \
+    && cmake_sum=09b7127b09e3d3ed5fa894f4e59f6a01112f267da6acc4249e46dba97b14afcb \
+    && curl -fsSL -o /tmp/cmake.tgz \
+         "https://github.com/Kitware/CMake/releases/download/v3.31.9/cmake-3.31.9-linux-aarch64.tar.gz" \
+    && echo "${cmake_sum}  /tmp/cmake.tgz" | sha256sum -c - \
+    && tar -C /usr/local --strip-components=1 -xzf /tmp/cmake.tgz \
+    && rm -f /tmp/cmake.tgz \
+    && dnf clean all \
+    && rm -rf /var/cache/dnf
+
+COPY scripts/build-onnxruntime.sh /usr/local/bin/build-onnxruntime.sh
+
+ENV QNN_VERSION=${QNN_VERSION}
+
+RUN --mount=type=secret,id=QNN_SDK_URL --mount=type=secret,id=QNN_SDK_SHA256 bash <<'ENDSCRIPT'
+set -euo pipefail
+url=$(tr -d '[:space:]' < /run/secrets/QNN_SDK_URL)
+sum=$(tr -d '[:space:]' < /run/secrets/QNN_SDK_SHA256)
+if ! printf '%s\n' "$sum" | grep -Eq '^[0-9a-fA-F]{64}$'; then
+  echo "QNN SDK checksum is not sha256" >&2
+  exit 1
+fi
+if ! curl -fsSL -o /tmp/qnn-sdk "$url" 2>/tmp/curl.err; then
+  echo "QNN SDK download failed" >&2
+  rm -f /tmp/curl.err /tmp/qnn-sdk
+  exit 1
+fi
+rm -f /tmp/curl.err
+echo "${sum}  /tmp/qnn-sdk" | sha256sum -c -
+mkdir -p /tmp/qnn-src
+if unzip -tq /tmp/qnn-sdk >/dev/null 2>&1; then
+  unzip -q /tmp/qnn-sdk -d /tmp/qnn-src
+elif tar -tf /tmp/qnn-sdk >/dev/null 2>&1; then
+  tar -C /tmp/qnn-src -xf /tmp/qnn-sdk
+else
+  echo "QNN SDK archive is not zip or tar" >&2
+  exit 1
+fi
+rm -f /tmp/qnn-sdk
+sdk=$(find /tmp/qnn-src -name sdk.yaml -type f -print -quit)
+if [ -z "$sdk" ]; then
+  echo "QNN SDK archive has no sdk.yaml" >&2
+  exit 1
+fi
+home=$(dirname "$sdk")
+test -d "$home/include"
+test -d "$home/lib"
+rm -rf "/opt/qnn-${QNN_VERSION}"
+mkdir -p "/opt/qnn-${QNN_VERSION}"
+cp -a "$home/." "/opt/qnn-${QNN_VERSION}/"
+rm -rf /tmp/qnn-src
+test -d "/opt/qnn-${QNN_VERSION}/include/QNN" || test -d "/opt/qnn-${QNN_VERSION}/include"
+ENDSCRIPT
+
+FROM build-ubi AS build-arm64
+RUN build-onnxruntime.sh qnn arm64
+RUN bash <<'ENDSCRIPT'
+set -euo pipefail
+version="${QNN_VERSION}"
+root="/opt/qnn-${version}"
+dest=/opt/onnxruntime/lib
+abi=""
+for candidate in \
+  aarch64-oe-linux-gcc11.2 \
+  aarch64-oe-linux-gcc9.4 \
+  aarch64-ubuntu-gcc11.2 \
+  aarch64-ubuntu-gcc9.4
+do
+  if [ -d "${root}/lib/${candidate}" ]; then
+    abi="$candidate"
+    break
+  fi
+done
+if [ -z "$abi" ]; then
+  echo "QNN SDK has no Linux aarch64 library directory" >&2
+  exit 1
+fi
+shopt -s nullglob
+for f in "${root}/lib/${abi}/libQnn"*.so "${root}/lib/${abi}/libHtpPrepare.so"; do
+  cp -a "$f" "$dest/"
+done
+for f in "${root}/lib"/hexagon-*/unsigned/libQnnHtpV*Skel.so; do
+  cp -a "$f" "$dest/"
+done
+shopt -u nullglob
+if [ ! -e "$dest/libQnnHtp.so" ]; then
+  echo "QNN HTP backend library was not staged" >&2
+  exit 1
+fi
+if [ -f "${root}/LICENSE.pdf" ]; then
+  cp -a "${root}/LICENSE.pdf" /opt/onnxruntime/licenses/Qualcomm_LICENSE.pdf
+fi
+for f in "$dest"/*; do
+  if [ -f "$f" ] && [ ! -L "$f" ]; then
+    chmod 0755 "$f"
+  fi
+done
+ENDSCRIPT
+
+FROM build-${TARGETARCH} AS build
+
+FROM scratch AS runtime
+COPY --from=build /opt/onnxruntime/lib/ /lib/
+COPY --from=build /opt/onnxruntime/include/ /include/
+COPY --from=build /opt/onnxruntime/licenses/ /licenses/
+COPY --from=build /opt/onnxruntime/VERSION /VERSION
+COPY --from=build /opt/onnxruntime/COMMIT /COMMIT

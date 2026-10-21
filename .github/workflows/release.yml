@@ -1,0 +1,425 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions: read-all
+
+env:
+  GO_VERSION: "1.26.10"
+
+jobs:
+  select:
+    name: Select variants
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      built: ${{ steps.plan.outputs.built }}
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Decide which variants to build
+        id: plan
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          ORT_LARGE_RUNNER_AMD64: ${{ vars.ORT_LARGE_RUNNER_AMD64 }}
+          ORT_LARGE_RUNNER_ARM64: ${{ vars.ORT_LARGE_RUNNER_ARM64 }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          import sys
+
+          rows = {
+              "cpu": [
+                  ("amd64", "linux/amd64", "final-ubi"),
+                  ("arm64", "linux/arm64", "final-ubi"),
+                  ("riscv64", "linux/riscv64", "final-distroless"),
+              ],
+              "cuda12": [
+                  ("amd64", "linux/amd64", "final-ubi"),
+                  ("arm64", "linux/arm64", "final-ubi"),
+              ],
+              "cuda13": [
+                  ("amd64", "linux/amd64", "final-ubi"),
+                  ("arm64", "linux/arm64", "final-ubi"),
+              ],
+              "tensorrt12": [
+                  ("amd64", "linux/amd64", "final-ubi"),
+              ],
+              "tensorrt13": [
+                  ("amd64", "linux/amd64", "final-amd64"),
+                  ("arm64", "linux/arm64", "final-arm64"),
+              ],
+              "qnn": [
+                  ("arm64", "linux/arm64", "final-ubi"),
+              ],
+              "openvino": [
+                  ("amd64", "linux/amd64", "final-ubi"),
+              ],
+              "migraphx": [
+                  ("amd64", "linux/amd64", "final-ubi"),
+              ],
+          }
+          lock_line = re.compile(
+              r"^([a-z0-9]+) (1\.31\.0-[a-z0-9]+@sha256:[0-9a-f]{64})$"
+          )
+
+          ref_name = os.environ["REF_NAME"]
+          if not ref_name.startswith("v") or ref_name == "v":
+              sys.exit("release tag must start with v")
+          version = ref_name[1:]
+          if not re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9_.-]{0,80}", version):
+              sys.exit("release version is not an image tag")
+
+          def runner_for(variant, arch):
+              # riscv64 has no native runner. It is built on amd64.
+              if arch == "riscv64":
+                  return "ubuntu-24.04"
+              if arch == "arm64":
+                  native = "ubuntu-24.04-arm"
+                  configured = os.environ.get("ORT_LARGE_RUNNER_ARM64", "").strip()
+              elif arch == "amd64":
+                  native = "ubuntu-24.04"
+                  configured = os.environ.get("ORT_LARGE_RUNNER_AMD64", "").strip()
+              else:
+                  sys.exit(f"unknown architecture {arch}")
+              if variant == "cpu" or not configured:
+                  return native
+              return configured
+
+          lock_path = "build/onnxruntime/runtime-images.txt"
+          recorded = {}
+          if os.path.isfile(lock_path):
+              with open(lock_path, encoding="utf-8") as handle:
+                  for n, raw in enumerate(handle, 1):
+                      line = raw.strip()
+                      if not line or line.startswith("#"):
+                          continue
+                      match = lock_line.fullmatch(line)
+                      if not match:
+                          sys.exit(f"runtime-images.txt:{n}: malformed line")
+                      variant, ref = match.group(1), match.group(2)
+                      if not ref.split("@", 1)[0].endswith("-" + variant):
+                          sys.exit(f"runtime-images.txt:{n}: tag does not match {variant}")
+                      if variant in recorded:
+                          sys.exit(f"runtime-images.txt:{n}: duplicate {variant}")
+                      if variant not in rows:
+                          sys.exit(f"runtime-images.txt:{n}: unknown variant {variant}")
+                      recorded[variant] = ref
+          if "cpu" not in recorded:
+              sys.exit("cpu runtime is not recorded")
+
+          matrix = []
+          for variant, platforms in rows.items():
+              if variant not in recorded:
+                  print(f"{variant} is not built")
+                  continue
+              for arch, platform, target in platforms:
+                  runner = runner_for(variant, arch)
+                  if not runner:
+                      sys.exit(f"{variant} {arch} has no runner")
+                  matrix.append(
+                      {
+                          "variant": variant,
+                          "arch": arch,
+                          "platform": platform,
+                          "target": target,
+                          "runner": runner,
+                          "ref": recorded[variant],
+                          "test": "true" if variant == "cpu" and arch in ("amd64", "arm64") else "false",
+                      }
+                  )
+
+          path = os.environ["GITHUB_OUTPUT"]
+          with open(path, "a", encoding="utf-8") as handle:
+              handle.write("matrix<<EOF\n")
+              handle.write(json.dumps(matrix))
+              handle.write("\nEOF\n")
+              handle.write(f"built={'true' if matrix else 'false'}\n")
+          PY
+
+  build:
+    name: ${{ matrix.variant }} ${{ matrix.arch }}
+    needs: select
+    if: needs.select.outputs.built == 'true'
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.select.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Resolve the registry
+        env:
+          IMAGE_REGISTRY: ${{ vars.IMAGE_REGISTRY }}
+          OCI_SOURCE_REPO: ${{ vars.OCI_SOURCE_REPO }}
+          LOCK_REF: ${{ matrix.ref }}
+        run: |
+          set -euo pipefail
+          registry="${IMAGE_REGISTRY:-}"
+          source_repo="${OCI_SOURCE_REPO:-}"
+          if [ -z "$registry" ] || [ -z "$source_repo" ]; then
+            case "${GITHUB_REPOSITORY}" in
+              eclipse-iofog/ai-inference-onnx)
+                registry="${registry:-ghcr.io/eclipse-iofog}"
+                source_repo="${source_repo:-https://github.com/eclipse-iofog/ai-inference-onnx}"
+                ;;
+              *)
+                registry="${registry:-ghcr.io/datasance}"
+                source_repo="${source_repo:-https://github.com/datasance/ai-inference-onnx}"
+                ;;
+            esac
+          fi
+          registry="${registry%/}"
+          source_repo="${source_repo%/}"
+          if [ -z "$registry" ]; then
+            echo "IMAGE_REGISTRY is empty" >&2
+            exit 1
+          fi
+          if [ -z "$source_repo" ]; then
+            echo "OCI_SOURCE_REPO is empty" >&2
+            exit 1
+          fi
+          if [ -z "$LOCK_REF" ]; then
+            echo "runtime reference is empty" >&2
+            exit 1
+          fi
+          version="${GITHUB_REF_NAME#v}"
+          if [ -z "$version" ] || [ "$version" = "$GITHUB_REF_NAME" ]; then
+            echo "release tag must start with v" >&2
+            exit 1
+          fi
+          {
+            echo "IMAGE_REGISTRY=${registry}"
+            echo "OCI_SOURCE_REPO=${source_repo}"
+            echo "IMAGE=${registry}/ai-inference-onnx"
+            echo "OCI_VERSION=${version}"
+            echo "RUNTIME_REF=${registry}/ai-inference-onnx-runtime:${LOCK_REF}"
+          } >> "$GITHUB_ENV"
+
+      - name: Set up Go
+        if: matrix.test == 'true'
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: go.sum
+
+      - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+
+      - uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Verify the recorded runtime
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          identity="https://github.com/${GITHUB_REPOSITORY}/.github/workflows/onnxruntime.yml@refs/heads/${DEFAULT_BRANCH}"
+          cosign verify \
+            --certificate-identity "$identity" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            "$RUNTIME_REF"
+
+      - name: Load the engine image
+        if: matrix.test == 'true'
+        env:
+          VARIANT: ${{ matrix.variant }}
+          TARGET: ${{ matrix.target }}
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          set -euo pipefail
+          # The local engine cannot store attestations. Provenance and the SBOM are attached on push.
+          docker buildx build \
+            --file "build/Dockerfile.${VARIANT}" \
+            --target "${TARGET}" \
+            --platform "${PLATFORM}" \
+            --build-context onnxruntime=docker-image://${RUNTIME_REF} \
+            --build-arg "OCI_SOURCE_REPO=${OCI_SOURCE_REPO}" \
+            --build-arg "OCI_VERSION=${OCI_VERSION}" \
+            --build-arg "OCI_REVISION=${GITHUB_SHA}" \
+            --provenance=false \
+            --sbom=false \
+            --load \
+            --tag ai-inference-onnx:release \
+            .
+
+      - name: Test the CPU engine image
+        if: matrix.test == 'true'
+        env:
+          ENGINE_TEST_IMAGE: ai-inference-onnx:release
+        run: ./scripts/engine-image-test.sh
+
+      - name: Push by digest
+        id: push
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
+        with:
+          context: .
+          file: build/Dockerfile.${{ matrix.variant }}
+          target: ${{ matrix.target }}
+          platforms: ${{ matrix.platform }}
+          build-contexts: onnxruntime=docker-image://${{ env.RUNTIME_REF }}
+          build-args: |
+            OCI_SOURCE_REPO=${{ env.OCI_SOURCE_REPO }}
+            OCI_VERSION=${{ env.OCI_VERSION }}
+            OCI_REVISION=${{ github.sha }}
+          provenance: true
+          sbom: true
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+
+      - name: Record the digest
+        env:
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          set -euo pipefail
+          case "$DIGEST" in
+            sha256:*) ;;
+            *) echo "engine digest is missing" >&2; exit 1 ;;
+          esac
+          printf '%s\n' "$DIGEST" > digest.txt
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: engine-digest-${{ matrix.variant }}-${{ matrix.arch }}
+          path: digest.txt
+          if-no-files-found: error
+
+  publish:
+    name: Publish manifests
+    needs: [select, build]
+    if: needs.select.result == 'success' && needs.build.result == 'success'
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    steps:
+      - name: Resolve the registry
+        env:
+          IMAGE_REGISTRY: ${{ vars.IMAGE_REGISTRY }}
+          OCI_SOURCE_REPO: ${{ vars.OCI_SOURCE_REPO }}
+        run: |
+          set -euo pipefail
+          registry="${IMAGE_REGISTRY:-}"
+          source_repo="${OCI_SOURCE_REPO:-}"
+          if [ -z "$registry" ] || [ -z "$source_repo" ]; then
+            case "${GITHUB_REPOSITORY}" in
+              eclipse-iofog/ai-inference-onnx)
+                registry="${registry:-ghcr.io/eclipse-iofog}"
+                source_repo="${source_repo:-https://github.com/eclipse-iofog/ai-inference-onnx}"
+                ;;
+              *)
+                registry="${registry:-ghcr.io/datasance}"
+                source_repo="${source_repo:-https://github.com/datasance/ai-inference-onnx}"
+                ;;
+            esac
+          fi
+          registry="${registry%/}"
+          source_repo="${source_repo%/}"
+          if [ -z "$registry" ]; then
+            echo "IMAGE_REGISTRY is empty" >&2
+            exit 1
+          fi
+          if [ -z "$source_repo" ]; then
+            echo "OCI_SOURCE_REPO is empty" >&2
+            exit 1
+          fi
+          version="${GITHUB_REF_NAME#v}"
+          if [ -z "$version" ] || [ "$version" = "$GITHUB_REF_NAME" ]; then
+            echo "release tag must start with v" >&2
+            exit 1
+          fi
+          {
+            echo "IMAGE_REGISTRY=${registry}"
+            echo "IMAGE=${registry}/ai-inference-onnx"
+            echo "OCI_VERSION=${version}"
+          } >> "$GITHUB_ENV"
+
+      - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+
+      - uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Create the manifest and sign it
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          version="${OCI_VERSION}"
+          if [ -z "$version" ]; then
+            echo "release version is empty" >&2
+            exit 1
+          fi
+          rm -rf artifacts
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --pattern 'engine-digest-*' --dir artifacts
+          declare -A digests=()
+          for dir in artifacts/engine-digest-*; do
+            [ -d "$dir" ] || continue
+            name=${dir##*/}
+            rest=${name#engine-digest-}
+            variant=${rest%-*}
+            digest=$(tr -d '[:space:]' < "$dir/digest.txt")
+            case "$digest" in
+              sha256:*) ;;
+              *) echo "engine digest is missing for ${variant}" >&2; exit 1 ;;
+            esac
+            digests[$variant]="${digests[$variant]:-} ${digest}"
+          done
+          if [ "${#digests[@]}" -eq 0 ]; then
+            echo "No engine digest was recorded." >&2
+            exit 1
+          fi
+          while IFS= read -r variant; do
+            [ -n "$variant" ] || continue
+            refs=()
+            for digest in ${digests[$variant]}; do
+              refs+=("${IMAGE}@${digest}")
+            done
+            tag="${IMAGE}:${version}-ort1.31.0-${variant}"
+            docker buildx imagetools create -t "$tag" "${refs[@]}"
+            manifest=$(docker buildx imagetools inspect --format '{{json .}}' "$tag")
+            index=$(printf '%s' "$manifest" | python3 -c '
+          import json, sys
+          data = json.load(sys.stdin)
+          found = ""
+          for key in ("Digest", "digest"):
+              value = data.get(key)
+              if isinstance(value, str) and value.startswith("sha256:"):
+                  found = value
+                  break
+          if not found:
+              manifest_body = data.get("Manifest") or data.get("manifest") or {}
+              if isinstance(manifest_body, dict):
+                  value = manifest_body.get("digest") or manifest_body.get("Digest") or ""
+                  if isinstance(value, str):
+                      found = value.strip("\"")
+          if not found.startswith("sha256:"):
+              sys.exit("manifest digest is missing")
+          sys.stdout.write(found)
+          ')
+            cosign sign --yes "${IMAGE}@${index}"
+            printf '%s@%s\n' "$tag" "$index" | tee -a "$GITHUB_STEP_SUMMARY"
+          done < <(printf '%s\n' "${!digests[@]}" | sort)

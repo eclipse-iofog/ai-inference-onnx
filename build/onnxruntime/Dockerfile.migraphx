@@ -1,0 +1,55 @@
+# MIGraphX ONNX Runtime 1.31.0.
+# amd64 compiles on the ROCm 7.1 AlmaLinux 8 development image.
+# AlmaLinux 8 and GCC 11 stay within this image's glibc and libstdc++.
+# The engine image stages the ROCm runtime libraries.
+
+FROM rocm/dev-almalinux-8:7.1-complete@sha256:4aff9b792f62571ef7245fdf0932db06f936f38ea1fc60454a18c371c08f1c5c AS build-ubi
+
+ARG TARGETARCH
+
+RUN if [ "$TARGETARCH" != amd64 ]; then echo "MIGraphX is built for amd64" >&2; exit 1; fi
+RUN dnf install -y --setopt=install_weak_deps=False \
+        gcc-toolset-11 \
+        gcc-toolset-11-gcc-c++ \
+        gcc-toolset-11-binutils \
+        binutils \
+        python3.12 \
+        git \
+        make \
+        ca-certificates \
+        curl \
+        tar \
+        gzip \
+        findutils \
+        patch \
+        zlib-devel \
+    && cmake_sum=312d78e0b7c5c9b4a97a87a46c3e525aa84895fe8135c238c4616bba73dc9518 \
+    && curl -fsSL -o /tmp/cmake.tgz \
+         "https://github.com/Kitware/CMake/releases/download/v3.31.9/cmake-3.31.9-linux-x86_64.tar.gz" \
+    && echo "${cmake_sum}  /tmp/cmake.tgz" | sha256sum -c - \
+    && tar -C /usr/local --strip-components=1 -xzf /tmp/cmake.tgz \
+    && rm -f /tmp/cmake.tgz \
+    && dnf clean all \
+    && rm -rf /var/cache/dnf
+
+ENV PATH=/opt/rh/gcc-toolset-11/root/usr/bin:/opt/rocm/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+    LDFLAGS= \
+    LD_LIBRARY_PATH=/opt/rocm/lib
+
+COPY scripts/build-onnxruntime.sh /usr/local/bin/build-onnxruntime.sh
+
+FROM build-ubi AS build-amd64
+RUN major="$(gcc -dumpversion | cut -d. -f1)" \
+    && if [ "$major" -lt 11 ]; then echo "MIGraphX needs a C++20 compiler" >&2; exit 1; fi \
+    && test -d /opt/rocm/lib \
+    && find /opt/rocm/lib -name 'libmigraphx_c.so*' -print -quit | grep -q . \
+    && build-onnxruntime.sh migraphx amd64
+
+FROM build-${TARGETARCH} AS build
+
+FROM scratch AS runtime
+COPY --from=build /opt/onnxruntime/lib/ /lib/
+COPY --from=build /opt/onnxruntime/include/ /include/
+COPY --from=build /opt/onnxruntime/licenses/ /licenses/
+COPY --from=build /opt/onnxruntime/VERSION /VERSION
+COPY --from=build /opt/onnxruntime/COMMIT /COMMIT
