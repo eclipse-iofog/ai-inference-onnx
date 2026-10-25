@@ -3,7 +3,7 @@
 # AlmaLinux 8 and GCC 13 stay within this image's glibc and libstdc++.
 # The engine image stages the ROCm runtime libraries.
 
-FROM rocm/dev-almalinux-8:7.1-complete@sha256:4aff9b792f62571ef7245fdf0932db06f936f38ea1fc60454a18c371c08f1c5c AS build-ubi
+FROM rocm/dev-almalinux-8:7.2-complete@sha256:d2b13829357bc6319d7f4f99140ea37e704f58f025df2556d3d633aabd398bb6 AS build-ubi
 
 ARG TARGETARCH
 
