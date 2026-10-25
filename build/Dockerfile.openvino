@@ -13,7 +13,6 @@ RUN dnf install -y --setopt=install_weak_deps=False \
         gcc-toolset-14-gcc-c++ \
         gcc-toolset-14-binutils \
         ca-certificates \
-        curl \
         tar \
         gzip \
     && go_sum=ccfe7ae822d2c2f41f4fe7c956199967a4dac22d0ee0d2b2bfdb440aab3b20c5 \
@@ -47,7 +46,7 @@ ARG OPENVINO_VERSION=2026.2.1
 ARG OPENVINO_URL=https://storage.openvinotoolkit.org/repositories/openvino/packages/2026.2.1/linux/openvino_toolkit_rhel8_2026.2.1.21919.ede283a88e3_x86_64.tgz
 ARG OPENVINO_SHA256=cf7a3eb84a1edbd852f719a4ba8c15dbf02a3744ab61488b6cae44747d90bf78
 
-RUN dnf install -y --setopt=install_weak_deps=False ca-certificates curl tar gzip findutils \
+RUN dnf install -y --setopt=install_weak_deps=False ca-certificates tar gzip findutils \
     && dnf clean all \
     && rm -rf /var/cache/dnf
 

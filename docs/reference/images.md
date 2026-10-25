@@ -16,7 +16,7 @@ A git tag `v0.1.0` publishes `0.1.0-ort1.31.0-<variant>` on that remote's engine
 
 A git tag `dashboard/v0.1.0` publishes `0.1.0` on that remote's dashboard name. The dashboard tag has no ONNX Runtime token. It does not contain `ort1.31.0`.
 
-The runtime image `ai-inference-onnx-runtime` is tagged `1.31.0-<variant>`. It is a build input. Nodes do not pull it.
+The runtime image `ai-inference-onnx-runtime` is tagged `1.31.0-<variant>`. It is a build input. Nodes do not pull it. A maintainer publishes it with `make runtime-arch` and `make runtime-index`. Both registries serve that digest. GitHub signs the recorded digest and does not build the image.
 
 ## Variants
 
@@ -29,7 +29,7 @@ ONNX Runtime is 1.31.0 in every engine image. The image tag selects the provider
 | `cuda13` | amd64, and arm64 on SBSA and JetPack 7 | CUDA 13.0.2, cuDNN 9.14.0.64 |
 | `tensorrt12` | amd64 | TensorRT 10.14.1.48, then CUDA. CUDA 12.9.1, cuDNN 9.10.2.21 |
 | `tensorrt13` | amd64, and arm64 on SBSA and JetPack 7 | amd64 is TensorRT 10.14.1.48, CUDA 13.0.2, cuDNN 9.14.0.64. arm64 is TensorRT 10.15.1.29, CUDA 13.1.2, cuDNN 9.17.1.4 |
-| `qnn` | arm64 | QNN 2.42.0.251225, HTP backend |
+| `qnn` | arm64 | QNN 2.51.0.260929, HTP backend |
 | `openvino` | amd64 | OpenVINO 2026.2.1 |
 | `migraphx` | amd64 | MIGraphX on ROCm 7.1 |
 
@@ -80,6 +80,8 @@ A CDI device spec that must add more than one group lists those ids under `addit
 ## Licenses and archives
 
 `/licenses` in every image holds the license and the third-party notices.
+
+The repository root carries `SBOM.md`, `LICENSE-3RD-PARTY.md`, `sbom.cdx.json`, and `sbom.spdx.json` for the source tree. Regenerate them with `make sbom`. A release adds one CycloneDX file and one SPDX file for each engine image, named `inference-<version>-ort1.31.0-<variant>-<arch>`, and the same pair for each CPU runtime archive, named `onnxruntime-1.31.0-cpu-linux-<arch>`. Those files add the file hashes. Publishing a runtime image writes that pair next to the architecture digest. Image attestations are separate from these files.
 
 Accelerator runtimes are not bare archives. They ship inside the image. The CPU runtime is also published as three archives, one per architecture:
 

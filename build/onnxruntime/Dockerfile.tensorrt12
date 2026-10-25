@@ -3,7 +3,7 @@
 # The scratch image keeps this runtime and its provider libraries.
 # CUDA, cuDNN, and TensorRT are staged by the engine image.
 
-FROM nvidia/cuda:12.9.1-cudnn-devel-ubi9@sha256:6d174b550260641b03fbd23c2f7cf56e1f1d699fe7862ea376f04a702b796ca5 AS build-ubi
+FROM nvcr.io/nvidia/cuda:12.9.1-cudnn-devel-ubi9@sha256:6d174b550260641b03fbd23c2f7cf56e1f1d699fe7862ea376f04a702b796ca5 AS build-ubi
 
 ARG TARGETARCH
 ARG TENSORRT_VERSION=10.14.1.48
@@ -21,7 +21,6 @@ RUN dnf install -y --setopt=install_weak_deps=False \
         git \
         make \
         ca-certificates \
-        curl \
         tar \
         gzip \
         findutils \
@@ -48,10 +47,7 @@ tar -C /tmp/tensorrt-src -xzf /tmp/tensorrt.tar.gz \
   --wildcards \
   '*/include/*' \
   '*/lib/*.so' \
-  '*/lib/*.so.*' \
-  '*/targets/*/include/*' \
-  '*/targets/*/lib/*.so' \
-  '*/targets/*/lib/*.so.*'
+  '*/lib/*.so.*'
 rm -f /tmp/tensorrt.tar.gz
 src=$(find /tmp/tensorrt-src -mindepth 1 -maxdepth 1 -type d -print -quit)
 mkdir -p "$root/include" "$root/lib"

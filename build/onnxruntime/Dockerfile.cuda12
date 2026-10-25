@@ -4,7 +4,7 @@
 # The scratch image keeps this runtime and its provider libraries.
 # CUDA and cuDNN are staged by the engine image.
 
-FROM nvidia/cuda:12.8.1-cudnn-devel-ubi9@sha256:3de998c28746389d98b4108b9719ca4675249545015fa92f95b6d08c048e080b AS build-ubi
+FROM nvcr.io/nvidia/cuda:12.8.1-cudnn-devel-ubi9@sha256:3de998c28746389d98b4108b9719ca4675249545015fa92f95b6d08c048e080b AS build-ubi
 
 ARG TARGETARCH
 RUN dnf install -y --setopt=install_weak_deps=False \
@@ -17,7 +17,6 @@ RUN dnf install -y --setopt=install_weak_deps=False \
         git \
         make \
         ca-certificates \
-        curl \
         tar \
         gzip \
         patch \

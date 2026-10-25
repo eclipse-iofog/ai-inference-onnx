@@ -46,6 +46,8 @@ spec:
     env:
       - key: AUTH_MODE
         value: edgelet
+      - key: INTRA_OP_THREADS
+        value: "4"
     ports:
       - internal: 8000
         external: 8000

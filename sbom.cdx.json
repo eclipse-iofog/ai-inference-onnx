@@ -1,0 +1,1840 @@
+{
+  "bomFormat": "CycloneDX",
+  "components": [
+    {
+      "bom-ref": "pkg:generic/cuda@12.8.1",
+      "description": "NVIDIA CUDA runtime staged into the engine image. The license text is the CUDA redistributable license, also staged as /licenses/cuda-cudart-LICENSE.",
+      "licenses": [
+        {
+          "expression": "LicenseRef-NVIDIA-CUDA"
+        }
+      ],
+      "name": "CUDA",
+      "properties": [
+        {
+          "name": "inference:closures",
+          "value": "runtime-cuda12"
+        },
+        {
+          "name": "inference:staged-image",
+          "value": "engine"
+        },
+        {
+          "name": "inference:staged-library",
+          "value": "libcudart.so"
+        }
+      ],
+      "purl": "pkg:generic/cuda@12.8.1",
+      "scope": "required",
+      "type": "library",
+      "version": "12.8.1"
+    },
+    {
+      "bom-ref": "pkg:generic/cuda@12.9.1",
+      "description": "NVIDIA CUDA runtime staged into the engine image. The license text is the CUDA redistributable license, also staged as /licenses/cuda-cudart-LICENSE.",
+      "licenses": [
+        {
+          "expression": "LicenseRef-NVIDIA-CUDA"
+        }
+      ],
+      "name": "CUDA",
+      "properties": [
+        {
+          "name": "inference:closures",
+          "value": "runtime-tensorrt12"
+        },
+        {
+          "name": "inference:staged-image",
+          "value": "engine"
+        },
+        {
+          "name": "inference:staged-library",
+          "value": "libcudart.so"
+        }
+      ],
+      "purl": "pkg:generic/cuda@12.9.1",
+      "scope": "required",
+      "type": "library",
+      "version": "12.9.1"
+    },
+    {
+      "bom-ref": "pkg:generic/cuda@13.0.2",
+      "description": "NVIDIA CUDA runtime staged into the engine image. The license text is the CUDA redistributable license, also staged as /licenses/cuda-cudart-LICENSE.",
+      "licenses": [
+        {
+          "expression": "LicenseRef-NVIDIA-CUDA"
+        }
+      ],
+      "name": "CUDA",
+      "properties": [
+        {
+          "name": "inference:closures",
+          "value": "runtime-cuda13,runtime-tensorrt13-amd64"
+        },
+        {
+          "name": "inference:staged-image",
+          "value": "engine"
+        },
+        {
+          "name": "inference:staged-library",
+          "value": "libcudart.so"
+        }
+      ],
+      "purl": "pkg:generic/cuda@13.0.2",
+      "scope": "required",
+      "type": "library",
+      "version": "13.0.2"
+    },
+    {
+      "bom-ref": "pkg:generic/cuda@13.1.2",
+      "description": "NVIDIA CUDA runtime staged into the engine image. The license text is the CUDA redistributable license, also staged as /licenses/cuda-cudart-LICENSE.",
+      "licenses": [
+        {
+          "expression": "LicenseRef-NVIDIA-CUDA"
+        }
+      ],
+      "name": "CUDA",
+      "properties": [
+        {
+          "name": "inference:closures",
+          "value": "runtime-tensorrt13-arm64"
+        },
+        {
+          "name": "inference:staged-image",
+          "value": "engine"
+        },
+        {
+          "name": "inference:staged-library",
+          "value": "libcudart.so"
+        }
+      ],
+      "purl": "pkg:generic/cuda@13.1.2",
+      "scope": "required",
+      "type": "library",
+      "version": "13.1.2"
+    },
+    {
+      "bom-ref": "pkg:generic/cudnn@9.10.2.21",
+      "description": "NVIDIA cuDNN staged into the engine image. The license text is the cuDNN redistributable LICENSE, including the NVIDIA SDK agreement and the third-party notices in that file.",
+      "licenses": [
+        {
+          "expression": "LicenseRef-NVIDIA-cuDNN"
+        }
+      ],
+      "name": "cuDNN",
+      "properties": [
+        {
+          "name": "inference:closures",
+          "value": "runtime-tensorrt12"
+        },
+        {
+          "name": "inference:staged-image",
+          "value": "engine"
+        },
+        {
+          "name": "inference:staged-library",
+          "value": "libcudnn.so"
+        }
+      ],
+      "purl": "pkg:generic/cudnn@9.10.2.21",
+      "scope": "required",
+      "type": "library",
+      "version": "9.10.2.21"
+    },
+    {
+      "bom-ref": "pkg:generic/cudnn@9.14.0.64",
+      "description": "NVIDIA cuDNN staged into the engine image. The license text is the cuDNN redistributable LICENSE, including the NVIDIA SDK agreement and the third-party notices in that file.",
+      "licenses": [
+        {
+          "expression": "LicenseRef-NVIDIA-cuDNN"
+        }
+      ],
+      "name": "cuDNN",
+      "properties": [
+        {
+          "name": "inference:closures",
+          "value": "runtime-cuda13,runtime-tensorrt13-amd64"
+        },
+        {
+          "name": "inference:staged-image",
+          "value": "engine"
+        },
+        {
+          "name": "inference:staged-library",
+          "value": "libcudnn.so"
+        }
+      ],
+      "purl": "pkg:generic/cudnn@9.14.0.64",
+      "scope": "required",
+      "type": "library",
+      "version": "9.14.0.64"
+    },
+    {
+      "bom-ref": "pkg:generic/cudnn@9.17.1.4",
+      "description": "NVIDIA cuDNN staged into the engine image. The license text is the cuDNN redistributable LICENSE, including the NVIDIA SDK agreement and the third-party notices in that file.",
+      "licenses": [
+        {
+          "expression": "LicenseRef-NVIDIA-cuDNN"
+        }
+      ],
+      "name": "cuDNN",
+      "properties": [
+        {
+          "name": "inference:closures",
+          "value": "runtime-tensorrt13-arm64"
+        },
+        {
+          "name": "inference:staged-image",
+          "value": "engine"
+        },
+        {
+          "name": "inference:staged-library",
+          "value": "libcudnn.so"
+        }
+      ],
+      "purl": "pkg:generic/cudnn@9.17.1.4",
+      "scope": "required",
+      "type": "library",
+      "version": "9.17.1.4"
+    },
+    {
+      "bom-ref": "pkg:generic/cudnn@9.8.0.87",
+      "description": "NVIDIA cuDNN staged into the engine image. The license text is the cuDNN redistributable LICENSE, including the NVIDIA SDK agreement and the third-party notices in that file.",
+      "licenses": [
+        {
+          "expression": "LicenseRef-NVIDIA-cuDNN"
+        }
+      ],
+      "name": "cuDNN",
+      "properties": [
+        {
+          "name": "inference:closures",
+          "value": "runtime-cuda12"
+        },
+        {
+          "name": "inference:staged-image",
+          "value": "engine"
+        },
+        {
+          "name": "inference:staged-library",
+          "value": "libcudnn.so"
+        }
+      ],
+      "purl": "pkg:generic/cudnn@9.8.0.87",
+      "scope": "required",
+      "type": "library",
+      "version": "9.8.0.87"
+    },
+    {
+      "bom-ref": "pkg:generic/go@1.26.10",
+      "description": "Toolchain pin from go.mod. The SBOM does not record the patch level of the machine that generated it.",
+      "licenses": [
+        {
+          "expression": "BSD-3-Clause"
+        }
+      ],
+      "name": "Go",
+      "properties": [
+        {
+          "name": "inference:closures",
+          "value": "dashboard,engine"
+        }
+      ],
+      "purl": "pkg:generic/go@1.26.10",
+      "scope": "required",
+      "type": "library",
+      "version": "1.26.10"
+    },
+    {
+      "bom-ref": "pkg:generic/migraphx@7.1",
+      "description": "AMD MIGraphX on ROCm, staged under /opt/rocm in the engine image. The license is the MIT text from the ROCm tree, and those license files are copied to /licenses.",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "AMD MIGraphX",
+      "properties": [
+        {
+          "name": "inference:closures",
+          "value": "runtime-migraphx"
+        },
+        {
+          "name": "inference:staged-image",
+          "value": "engine"
+        },
+        {
+          "name": "inference:staged-library",
+          "value": "libmigraphx_c.so"
+        }
+      ],
+      "purl": "pkg:generic/migraphx@7.1",
+      "scope": "required",
+      "type": "library",
+      "version": "7.1"
+    },
+    {
+      "bom-ref": "pkg:generic/onnxruntime@1.31.0",
+      "description": "Shared library built from https://github.com/microsoft/onnxruntime.git commit 402979ac1bef89dcd55add41eaa7277c407599eb. The engine loads libonnxruntime.so.1.31.0 at run time and does not link it. licenses/LICENSE and licenses/ThirdPartyNotices.txt ship in the runtime image.",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "ONNX Runtime",
+      "properties": [
+        {
+          "name": "inference:closures",
+          "value": "runtime-cpu,runtime-cuda12,runtime-cuda13,runtime-migraphx,runtime-openvino,runtime-qnn,runtime-tensorrt12,runtime-tensorrt13-amd64,runtime-tensorrt13-arm64"
+        },
+        {
+          "name": "inference:commit",
+          "value": "402979ac1bef89dcd55add41eaa7277c407599eb"
+        },
+        {
+          "name": "inference:staged-image",
+          "value": "both"
+        },
+        {
+          "name": "inference:staged-library",
+          "value": "libonnxruntime.so.1.31.0"
+        }
+      ],
+      "purl": "pkg:generic/onnxruntime@1.31.0",
+      "scope": "required",
+      "type": "library",
+      "version": "1.31.0"
+    },
+    {
+      "bom-ref": "pkg:generic/openvino@2026.2.1",
+      "description": "Intel OpenVINO staged into the engine image. The license file is /licenses/openvino-LICENSE.",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "OpenVINO",
+      "properties": [
+        {
+          "name": "inference:closures",
+          "value": "runtime-openvino"
+        },
+        {
+          "name": "inference:staged-image",
+          "value": "engine"
+        },
+        {
+          "name": "inference:staged-library",
+          "value": "libopenvino.so"
+        }
+      ],
+      "purl": "pkg:generic/openvino@2026.2.1",
+      "scope": "required",
+      "type": "library",
+      "version": "2026.2.1"
+    },
+    {
+      "bom-ref": "pkg:generic/qnn@2.51.0.260929",
+      "description": "Qualcomm QNN HTP backend. The libraries are copied into the ONNX Runtime library directory. The license is the Qualcomm AI Stack license, staged as /licenses/Qualcomm_LICENSE.pdf.",
+      "licenses": [
+        {
+          "expression": "LicenseRef-qcom-ai-stack"
+        }
+      ],
+      "name": "Qualcomm QNN",
+      "properties": [
+        {
+          "name": "inference:closures",
+          "value": "runtime-qnn"
+        },
+        {
+          "name": "inference:staged-image",
+          "value": "both"
+        },
+        {
+          "name": "inference:staged-library",
+          "value": "libQnnHtp.so"
+        }
+      ],
+      "purl": "pkg:generic/qnn@2.51.0.260929",
+      "scope": "required",
+      "type": "library",
+      "version": "2.51.0.260929"
+    },
+    {
+      "bom-ref": "pkg:generic/tensorrt@10.14.1.48",
+      "description": "NVIDIA TensorRT staged into the engine image. The license text is the TensorRT SDK agreement for the shipped library.",
+      "licenses": [
+        {
+          "expression": "LicenseRef-NVIDIA-TensorRT"
+        }
+      ],
+      "name": "TensorRT",
+      "properties": [
+        {
+          "name": "inference:closures",
+          "value": "runtime-tensorrt12,runtime-tensorrt13-amd64"
+        },
+        {
+          "name": "inference:staged-image",
+          "value": "engine"
+        },
+        {
+          "name": "inference:staged-library",
+          "value": "libnvinfer.so"
+        }
+      ],
+      "purl": "pkg:generic/tensorrt@10.14.1.48",
+      "scope": "required",
+      "type": "library",
+      "version": "10.14.1.48"
+    },
+    {
+      "bom-ref": "pkg:generic/tensorrt@10.15.1.29",
+      "description": "NVIDIA TensorRT staged into the engine image. The license text is the TensorRT SDK agreement for the shipped library.",
+      "licenses": [
+        {
+          "expression": "LicenseRef-NVIDIA-TensorRT"
+        }
+      ],
+      "name": "TensorRT",
+      "properties": [
+        {
+          "name": "inference:closures",
+          "value": "runtime-tensorrt13-arm64"
+        },
+        {
+          "name": "inference:staged-image",
+          "value": "engine"
+        },
+        {
+          "name": "inference:staged-library",
+          "value": "libnvinfer.so"
+        }
+      ],
+      "purl": "pkg:generic/tensorrt@10.15.1.29",
+      "scope": "required",
+      "type": "library",
+      "version": "10.15.1.29"
+    },
+    {
+      "bom-ref": "pkg:golang/cel.dev/expr@v0.25.2",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "cel.dev/expr",
+      "purl": "pkg:golang/cel.dev/expr@v0.25.2",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v0.25.2"
+    },
+    {
+      "bom-ref": "pkg:golang/cloud.google.com/go/auth@v0.20.0",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "cloud.google.com/go/auth",
+      "purl": "pkg:golang/cloud.google.com/go/auth@v0.20.0",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v0.20.0"
+    },
+    {
+      "bom-ref": "pkg:golang/cloud.google.com/go/compute/metadata@v0.9.0",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "cloud.google.com/go/compute/metadata",
+      "purl": "pkg:golang/cloud.google.com/go/compute/metadata@v0.9.0",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v0.9.0"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp@v1.34.0",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp",
+      "purl": "pkg:golang/github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp@v1.34.0",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v1.34.0"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/alecthomas/kingpin/v2@v2.4.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "github.com/alecthomas/kingpin/v2",
+      "purl": "pkg:golang/github.com/alecthomas/kingpin/v2@v2.4.0",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v2.4.0"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/alecthomas/units@v0.0.0-20240927000941-0f3dac36c52b",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "github.com/alecthomas/units",
+      "purl": "pkg:golang/github.com/alecthomas/units@v0.0.0-20240927000941-0f3dac36c52b",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v0.0.0-20240927000941-0f3dac36c52b"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/antithesishq/antithesis-sdk-go@v0.8.0-default-no-op",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "github.com/antithesishq/antithesis-sdk-go",
+      "properties": [
+        {
+          "name": "inference:closures",
+          "value": "test-dashboard,test-engine"
+        }
+      ],
+      "purl": "pkg:golang/github.com/antithesishq/antithesis-sdk-go@v0.8.0-default-no-op",
+      "scope": "optional",
+      "type": "library",
+      "version": "v0.8.0-default-no-op"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/beorn7/perks@v1.0.1",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "github.com/beorn7/perks",
+      "properties": [
+        {
+          "name": "inference:closures",
+          "value": "engine"
+        }
+      ],
+      "purl": "pkg:golang/github.com/beorn7/perks@v1.0.1",
+      "scope": "required",
+      "type": "library",
+      "version": "v1.0.1"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/cespare/xxhash/v2@v2.3.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "github.com/cespare/xxhash/v2",
+      "properties": [
+        {
+          "name": "inference:closures",
+          "value": "engine"
+        }
+      ],
+      "purl": "pkg:golang/github.com/cespare/xxhash/v2@v2.3.0",
+      "scope": "required",
+      "type": "library",
+      "version": "v2.3.0"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/cncf/xds/go@v0.0.0-20260202195803-dba9d589def2",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "github.com/cncf/xds/go",
+      "purl": "pkg:golang/github.com/cncf/xds/go@v0.0.0-20260202195803-dba9d589def2",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v0.0.0-20260202195803-dba9d589def2"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/envoyproxy/go-control-plane/envoy@v1.37.0",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "github.com/envoyproxy/go-control-plane/envoy",
+      "purl": "pkg:golang/github.com/envoyproxy/go-control-plane/envoy@v1.37.0",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v1.37.0"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/envoyproxy/go-control-plane/ratelimit@v0.1.0",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "github.com/envoyproxy/go-control-plane/ratelimit",
+      "purl": "pkg:golang/github.com/envoyproxy/go-control-plane/ratelimit@v0.1.0",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v0.1.0"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/envoyproxy/go-control-plane@v0.14.0",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "github.com/envoyproxy/go-control-plane",
+      "purl": "pkg:golang/github.com/envoyproxy/go-control-plane@v0.14.0",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v0.14.0"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/envoyproxy/protoc-gen-validate@v1.3.3",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "github.com/envoyproxy/protoc-gen-validate",
+      "purl": "pkg:golang/github.com/envoyproxy/protoc-gen-validate@v1.3.3",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v1.3.3"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/felixge/httpsnoop@v1.1.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "github.com/felixge/httpsnoop",
+      "purl": "pkg:golang/github.com/felixge/httpsnoop@v1.1.0",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v1.1.0"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/fsnotify/fsnotify@v1.10.1",
+      "licenses": [
+        {
+          "expression": "BSD-3-Clause"
+        }
+      ],
+      "name": "github.com/fsnotify/fsnotify",
+      "properties": [
+        {
+          "name": "inference:closures",
+          "value": "engine"
+        }
+      ],
+      "purl": "pkg:golang/github.com/fsnotify/fsnotify@v1.10.1",
+      "scope": "required",
+      "type": "library",
+      "version": "v1.10.1"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/go-jose/go-jose/v4@v4.1.4",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "github.com/go-jose/go-jose/v4",
+      "purl": "pkg:golang/github.com/go-jose/go-jose/v4@v4.1.4",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v4.1.4"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/go-logr/logr@v1.4.3",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "github.com/go-logr/logr",
+      "purl": "pkg:golang/github.com/go-logr/logr@v1.4.3",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v1.4.3"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/go-logr/stdr@v1.2.2",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "github.com/go-logr/stdr",
+      "purl": "pkg:golang/github.com/go-logr/stdr@v1.2.2",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v1.2.2"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/go-quicktest/qt@v1.101.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "github.com/go-quicktest/qt",
+      "purl": "pkg:golang/github.com/go-quicktest/qt@v1.101.0",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v1.101.0"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/golang-jwt/jwt/v5@v5.3.1",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "github.com/golang-jwt/jwt/v5",
+      "properties": [
+        {
+          "name": "inference:closures",
+          "value": "engine"
+        }
+      ],
+      "purl": "pkg:golang/github.com/golang-jwt/jwt/v5@v5.3.1",
+      "scope": "required",
+      "type": "library",
+      "version": "v5.3.1"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/golang/glog@v1.2.5",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "github.com/golang/glog",
+      "purl": "pkg:golang/github.com/golang/glog@v1.2.5",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v1.2.5"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/golang/protobuf@v1.5.4",
+      "licenses": [
+        {
+          "expression": "BSD-3-Clause"
+        }
+      ],
+      "name": "github.com/golang/protobuf",
+      "purl": "pkg:golang/github.com/golang/protobuf@v1.5.4",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v1.5.4"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/google/go-cmp@v0.6.0",
+      "licenses": [
+        {
+          "expression": "BSD-3-Clause"
+        }
+      ],
+      "name": "github.com/google/go-cmp",
+      "purl": "pkg:golang/github.com/google/go-cmp@v0.6.0",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v0.6.0"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/google/go-cmp@v0.7.0",
+      "licenses": [
+        {
+          "expression": "BSD-3-Clause"
+        }
+      ],
+      "name": "github.com/google/go-cmp",
+      "purl": "pkg:golang/github.com/google/go-cmp@v0.7.0",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v0.7.0"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/google/go-tpm-tools@v0.3.13-0.20230620182252-4639ecce2aba",
+      "licenses": [
+        {
+          "expression": "Apache-2.0 OR BSD-3-Clause"
+        }
+      ],
+      "name": "github.com/google/go-tpm-tools",
+      "purl": "pkg:golang/github.com/google/go-tpm-tools@v0.3.13-0.20230620182252-4639ecce2aba",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v0.3.13-0.20230620182252-4639ecce2aba"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/google/go-tpm@v0.9.8",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "github.com/google/go-tpm",
+      "purl": "pkg:golang/github.com/google/go-tpm@v0.9.8",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v0.9.8"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/google/s2a-go@v0.1.9",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "github.com/google/s2a-go",
+      "purl": "pkg:golang/github.com/google/s2a-go@v0.1.9",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v0.1.9"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/google/uuid@v1.6.0",
+      "licenses": [
+        {
+          "expression": "BSD-3-Clause"
+        }
+      ],
+      "name": "github.com/google/uuid",
+      "purl": "pkg:golang/github.com/google/uuid@v1.6.0",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v1.6.0"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/googleapis/enterprise-certificate-proxy@v0.3.15",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "github.com/googleapis/enterprise-certificate-proxy",
+      "purl": "pkg:golang/github.com/googleapis/enterprise-certificate-proxy@v0.3.15",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v0.3.15"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/googleapis/gax-go/v2@v2.22.0",
+      "licenses": [
+        {
+          "expression": "BSD-3-Clause"
+        }
+      ],
+      "name": "github.com/googleapis/gax-go/v2",
+      "purl": "pkg:golang/github.com/googleapis/gax-go/v2@v2.22.0",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v2.22.0"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/jpillora/backoff@v1.0.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "github.com/jpillora/backoff",
+      "purl": "pkg:golang/github.com/jpillora/backoff@v1.0.0",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v1.0.0"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/json-iterator/go@v1.1.12",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "github.com/json-iterator/go",
+      "purl": "pkg:golang/github.com/json-iterator/go@v1.1.12",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v1.1.12"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/julienschmidt/httprouter@v1.3.0",
+      "licenses": [
+        {
+          "expression": "BSD-3-Clause"
+        }
+      ],
+      "name": "github.com/julienschmidt/httprouter",
+      "purl": "pkg:golang/github.com/julienschmidt/httprouter@v1.3.0",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v1.3.0"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/klauspost/compress@v1.20.1",
+      "licenses": [
+        {
+          "expression": "Apache-2.0 OR BSD-3-Clause OR MIT"
+        }
+      ],
+      "name": "github.com/klauspost/compress",
+      "properties": [
+        {
+          "name": "inference:closures",
+          "value": "dashboard,engine"
+        }
+      ],
+      "purl": "pkg:golang/github.com/klauspost/compress@v1.20.1",
+      "scope": "required",
+      "type": "library",
+      "version": "v1.20.1"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/kr/pretty@v0.3.1",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "github.com/kr/pretty",
+      "purl": "pkg:golang/github.com/kr/pretty@v0.3.1",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v0.3.1"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/kr/text@v0.2.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "github.com/kr/text",
+      "purl": "pkg:golang/github.com/kr/text@v0.2.0",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v0.2.0"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/kylelemons/godebug@v1.1.0",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "github.com/kylelemons/godebug",
+      "purl": "pkg:golang/github.com/kylelemons/godebug@v1.1.0",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v1.1.0"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/microsoft/onnxruntime/go@v0.0.0-20261013071300-9036f076a2ce",
+      "description": "Go binding. The shared library is the ONNX Runtime component, loaded at run time.",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "github.com/microsoft/onnxruntime/go",
+      "properties": [
+        {
+          "name": "inference:closures",
+          "value": "engine"
+        }
+      ],
+      "purl": "pkg:golang/github.com/microsoft/onnxruntime/go@v0.0.0-20261013071300-9036f076a2ce",
+      "scope": "required",
+      "type": "library",
+      "version": "v0.0.0-20261013071300-9036f076a2ce"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/minio/highwayhash@v1.0.4",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "github.com/minio/highwayhash",
+      "properties": [
+        {
+          "name": "inference:closures",
+          "value": "test-dashboard,test-engine"
+        }
+      ],
+      "purl": "pkg:golang/github.com/minio/highwayhash@v1.0.4",
+      "scope": "optional",
+      "type": "library",
+      "version": "v1.0.4"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/modern-go/concurrent@v0.0.0-20180306012644-bacd9c7ef1dd",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "github.com/modern-go/concurrent",
+      "purl": "pkg:golang/github.com/modern-go/concurrent@v0.0.0-20180306012644-bacd9c7ef1dd",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v0.0.0-20180306012644-bacd9c7ef1dd"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/modern-go/reflect2@v1.0.2",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "github.com/modern-go/reflect2",
+      "purl": "pkg:golang/github.com/modern-go/reflect2@v1.0.2",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v1.0.2"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/munnerz/goautoneg@v0.0.0-20191010083416-a7dc8b61c822",
+      "licenses": [
+        {
+          "expression": "BSD-3-Clause"
+        }
+      ],
+      "name": "github.com/munnerz/goautoneg",
+      "properties": [
+        {
+          "name": "inference:closures",
+          "value": "engine"
+        }
+      ],
+      "purl": "pkg:golang/github.com/munnerz/goautoneg@v0.0.0-20191010083416-a7dc8b61c822",
+      "scope": "required",
+      "type": "library",
+      "version": "v0.0.0-20191010083416-a7dc8b61c822"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/mwitkow/go-conntrack@v0.0.0-20190716064945-2f068394615f",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "github.com/mwitkow/go-conntrack",
+      "purl": "pkg:golang/github.com/mwitkow/go-conntrack@v0.0.0-20190716064945-2f068394615f",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v0.0.0-20190716064945-2f068394615f"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/nats-io/jwt/v2@v2.8.2",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "github.com/nats-io/jwt/v2",
+      "properties": [
+        {
+          "name": "inference:closures",
+          "value": "test-dashboard,test-engine"
+        }
+      ],
+      "purl": "pkg:golang/github.com/nats-io/jwt/v2@v2.8.2",
+      "scope": "optional",
+      "type": "library",
+      "version": "v2.8.2"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/nats-io/nats-server/v2@v2.15.1",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "github.com/nats-io/nats-server/v2",
+      "properties": [
+        {
+          "name": "inference:closures",
+          "value": "test-dashboard,test-engine"
+        }
+      ],
+      "purl": "pkg:golang/github.com/nats-io/nats-server/v2@v2.15.1",
+      "scope": "optional",
+      "type": "library",
+      "version": "v2.15.1"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/nats-io/nats.go@v1.54.0",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "github.com/nats-io/nats.go",
+      "properties": [
+        {
+          "name": "inference:closures",
+          "value": "dashboard,engine"
+        }
+      ],
+      "purl": "pkg:golang/github.com/nats-io/nats.go@v1.54.0",
+      "scope": "required",
+      "type": "library",
+      "version": "v1.54.0"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/nats-io/nkeys@v0.4.16",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "github.com/nats-io/nkeys",
+      "properties": [
+        {
+          "name": "inference:closures",
+          "value": "dashboard,engine"
+        }
+      ],
+      "purl": "pkg:golang/github.com/nats-io/nkeys@v0.4.16",
+      "scope": "required",
+      "type": "library",
+      "version": "v0.4.16"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/nats-io/nuid@v1.0.1",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "github.com/nats-io/nuid",
+      "properties": [
+        {
+          "name": "inference:closures",
+          "value": "dashboard,engine"
+        }
+      ],
+      "purl": "pkg:golang/github.com/nats-io/nuid@v1.0.1",
+      "scope": "required",
+      "type": "library",
+      "version": "v1.0.1"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/planetscale/vtprotobuf@v0.6.1-0.20240319094008-0393e58bdf10",
+      "licenses": [
+        {
+          "expression": "BSD-3-Clause"
+        }
+      ],
+      "name": "github.com/planetscale/vtprotobuf",
+      "purl": "pkg:golang/github.com/planetscale/vtprotobuf@v0.6.1-0.20240319094008-0393e58bdf10",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v0.6.1-0.20240319094008-0393e58bdf10"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/prometheus/client_golang@v1.25.0",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "github.com/prometheus/client_golang",
+      "properties": [
+        {
+          "name": "inference:closures",
+          "value": "engine"
+        }
+      ],
+      "purl": "pkg:golang/github.com/prometheus/client_golang@v1.25.0",
+      "scope": "required",
+      "type": "library",
+      "version": "v1.25.0"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/prometheus/client_model@v0.6.3",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "github.com/prometheus/client_model",
+      "properties": [
+        {
+          "name": "inference:closures",
+          "value": "engine"
+        }
+      ],
+      "purl": "pkg:golang/github.com/prometheus/client_model@v0.6.3",
+      "scope": "required",
+      "type": "library",
+      "version": "v0.6.3"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/prometheus/common@v0.72.0",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "github.com/prometheus/common",
+      "properties": [
+        {
+          "name": "inference:closures",
+          "value": "engine"
+        }
+      ],
+      "purl": "pkg:golang/github.com/prometheus/common@v0.72.0",
+      "scope": "required",
+      "type": "library",
+      "version": "v0.72.0"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/prometheus/procfs@v0.22.0",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "github.com/prometheus/procfs",
+      "properties": [
+        {
+          "name": "inference:closures",
+          "value": "engine"
+        }
+      ],
+      "purl": "pkg:golang/github.com/prometheus/procfs@v0.22.0",
+      "scope": "required",
+      "type": "library",
+      "version": "v0.22.0"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/rogpeppe/go-internal@v1.11.0",
+      "licenses": [
+        {
+          "expression": "BSD-3-Clause"
+        }
+      ],
+      "name": "github.com/rogpeppe/go-internal",
+      "purl": "pkg:golang/github.com/rogpeppe/go-internal@v1.11.0",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v1.11.0"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/spiffe/go-spiffe/v2@v2.8.1",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "github.com/spiffe/go-spiffe/v2",
+      "purl": "pkg:golang/github.com/spiffe/go-spiffe/v2@v2.8.1",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v2.8.1"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/stretchr/testify@v1.12.1",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "github.com/stretchr/testify",
+      "purl": "pkg:golang/github.com/stretchr/testify@v1.12.1",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v1.12.1"
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/xhit/go-str2duration/v2@v2.1.0",
+      "licenses": [
+        {
+          "expression": "BSD-3-Clause"
+        }
+      ],
+      "name": "github.com/xhit/go-str2duration/v2",
+      "purl": "pkg:golang/github.com/xhit/go-str2duration/v2@v2.1.0",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v2.1.0"
+    },
+    {
+      "bom-ref": "pkg:golang/go.opentelemetry.io/auto/sdk@v1.2.1",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "go.opentelemetry.io/auto/sdk",
+      "purl": "pkg:golang/go.opentelemetry.io/auto/sdk@v1.2.1",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v1.2.1"
+    },
+    {
+      "bom-ref": "pkg:golang/go.opentelemetry.io/contrib/detectors/gcp@v1.44.0",
+      "licenses": [
+        {
+          "expression": "Apache-2.0 OR BSD-3-Clause"
+        }
+      ],
+      "name": "go.opentelemetry.io/contrib/detectors/gcp",
+      "purl": "pkg:golang/go.opentelemetry.io/contrib/detectors/gcp@v1.44.0",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v1.44.0"
+    },
+    {
+      "bom-ref": "pkg:golang/go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp@v0.69.0",
+      "licenses": [
+        {
+          "expression": "Apache-2.0 OR BSD-3-Clause"
+        }
+      ],
+      "name": "go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp",
+      "purl": "pkg:golang/go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp@v0.69.0",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v0.69.0"
+    },
+    {
+      "bom-ref": "pkg:golang/go.opentelemetry.io/otel/metric@v1.44.0",
+      "licenses": [
+        {
+          "expression": "Apache-2.0 OR BSD-3-Clause"
+        }
+      ],
+      "name": "go.opentelemetry.io/otel/metric",
+      "purl": "pkg:golang/go.opentelemetry.io/otel/metric@v1.44.0",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v1.44.0"
+    },
+    {
+      "bom-ref": "pkg:golang/go.opentelemetry.io/otel/sdk/metric@v1.44.0",
+      "licenses": [
+        {
+          "expression": "Apache-2.0 OR BSD-3-Clause"
+        }
+      ],
+      "name": "go.opentelemetry.io/otel/sdk/metric",
+      "purl": "pkg:golang/go.opentelemetry.io/otel/sdk/metric@v1.44.0",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v1.44.0"
+    },
+    {
+      "bom-ref": "pkg:golang/go.opentelemetry.io/otel/sdk@v1.44.0",
+      "licenses": [
+        {
+          "expression": "Apache-2.0 OR BSD-3-Clause"
+        }
+      ],
+      "name": "go.opentelemetry.io/otel/sdk",
+      "purl": "pkg:golang/go.opentelemetry.io/otel/sdk@v1.44.0",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v1.44.0"
+    },
+    {
+      "bom-ref": "pkg:golang/go.opentelemetry.io/otel/trace@v1.44.0",
+      "licenses": [
+        {
+          "expression": "Apache-2.0 OR BSD-3-Clause"
+        }
+      ],
+      "name": "go.opentelemetry.io/otel/trace",
+      "purl": "pkg:golang/go.opentelemetry.io/otel/trace@v1.44.0",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v1.44.0"
+    },
+    {
+      "bom-ref": "pkg:golang/go.opentelemetry.io/otel@v1.44.0",
+      "licenses": [
+        {
+          "expression": "Apache-2.0 OR BSD-3-Clause"
+        }
+      ],
+      "name": "go.opentelemetry.io/otel",
+      "purl": "pkg:golang/go.opentelemetry.io/otel@v1.44.0",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v1.44.0"
+    },
+    {
+      "bom-ref": "pkg:golang/go.uber.org/goleak@v1.3.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "go.uber.org/goleak",
+      "purl": "pkg:golang/go.uber.org/goleak@v1.3.0",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v1.3.0"
+    },
+    {
+      "bom-ref": "pkg:golang/go.yaml.in/yaml/v2@v2.4.4",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "go.yaml.in/yaml/v2",
+      "purl": "pkg:golang/go.yaml.in/yaml/v2@v2.4.4",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v2.4.4"
+    },
+    {
+      "bom-ref": "pkg:golang/go.yaml.in/yaml/v3@v3.0.5",
+      "licenses": [
+        {
+          "expression": "Apache-2.0 OR MIT"
+        }
+      ],
+      "name": "go.yaml.in/yaml/v3",
+      "purl": "pkg:golang/go.yaml.in/yaml/v3@v3.0.5",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v3.0.5"
+    },
+    {
+      "bom-ref": "pkg:golang/golang.org/x/crypto@v0.57.0",
+      "licenses": [
+        {
+          "expression": "BSD-3-Clause"
+        }
+      ],
+      "name": "golang.org/x/crypto",
+      "properties": [
+        {
+          "name": "inference:closures",
+          "value": "dashboard,engine"
+        }
+      ],
+      "purl": "pkg:golang/golang.org/x/crypto@v0.57.0",
+      "scope": "required",
+      "type": "library",
+      "version": "v0.57.0"
+    },
+    {
+      "bom-ref": "pkg:golang/golang.org/x/mod@v0.33.0",
+      "licenses": [
+        {
+          "expression": "BSD-3-Clause"
+        }
+      ],
+      "name": "golang.org/x/mod",
+      "purl": "pkg:golang/golang.org/x/mod@v0.33.0",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v0.33.0"
+    },
+    {
+      "bom-ref": "pkg:golang/golang.org/x/mod@v0.41.0",
+      "licenses": [
+        {
+          "expression": "BSD-3-Clause"
+        }
+      ],
+      "name": "golang.org/x/mod",
+      "purl": "pkg:golang/golang.org/x/mod@v0.41.0",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v0.41.0"
+    },
+    {
+      "bom-ref": "pkg:golang/golang.org/x/net@v0.58.0",
+      "licenses": [
+        {
+          "expression": "BSD-3-Clause"
+        }
+      ],
+      "name": "golang.org/x/net",
+      "purl": "pkg:golang/golang.org/x/net@v0.58.0",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v0.58.0"
+    },
+    {
+      "bom-ref": "pkg:golang/golang.org/x/net@v0.60.0",
+      "licenses": [
+        {
+          "expression": "BSD-3-Clause"
+        }
+      ],
+      "name": "golang.org/x/net",
+      "properties": [
+        {
+          "name": "inference:closures",
+          "value": "engine"
+        }
+      ],
+      "purl": "pkg:golang/golang.org/x/net@v0.60.0",
+      "scope": "required",
+      "type": "library",
+      "version": "v0.60.0"
+    },
+    {
+      "bom-ref": "pkg:golang/golang.org/x/oauth2@v0.37.0",
+      "licenses": [
+        {
+          "expression": "BSD-3-Clause"
+        }
+      ],
+      "name": "golang.org/x/oauth2",
+      "purl": "pkg:golang/golang.org/x/oauth2@v0.37.0",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v0.37.0"
+    },
+    {
+      "bom-ref": "pkg:golang/golang.org/x/sync@v0.19.0",
+      "licenses": [
+        {
+          "expression": "BSD-3-Clause"
+        }
+      ],
+      "name": "golang.org/x/sync",
+      "purl": "pkg:golang/golang.org/x/sync@v0.19.0",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v0.19.0"
+    },
+    {
+      "bom-ref": "pkg:golang/golang.org/x/sync@v0.23.0",
+      "licenses": [
+        {
+          "expression": "BSD-3-Clause"
+        }
+      ],
+      "name": "golang.org/x/sync",
+      "purl": "pkg:golang/golang.org/x/sync@v0.23.0",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v0.23.0"
+    },
+    {
+      "bom-ref": "pkg:golang/golang.org/x/sys@v0.48.0",
+      "licenses": [
+        {
+          "expression": "BSD-3-Clause"
+        }
+      ],
+      "name": "golang.org/x/sys",
+      "properties": [
+        {
+          "name": "inference:closures",
+          "value": "dashboard,engine"
+        }
+      ],
+      "purl": "pkg:golang/golang.org/x/sys@v0.48.0",
+      "scope": "required",
+      "type": "library",
+      "version": "v0.48.0"
+    },
+    {
+      "bom-ref": "pkg:golang/golang.org/x/term@v0.46.0",
+      "licenses": [
+        {
+          "expression": "BSD-3-Clause"
+        }
+      ],
+      "name": "golang.org/x/term",
+      "purl": "pkg:golang/golang.org/x/term@v0.46.0",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v0.46.0"
+    },
+    {
+      "bom-ref": "pkg:golang/golang.org/x/text@v0.42.0",
+      "licenses": [
+        {
+          "expression": "BSD-3-Clause"
+        }
+      ],
+      "name": "golang.org/x/text",
+      "properties": [
+        {
+          "name": "inference:closures",
+          "value": "engine"
+        }
+      ],
+      "purl": "pkg:golang/golang.org/x/text@v0.42.0",
+      "scope": "required",
+      "type": "library",
+      "version": "v0.42.0"
+    },
+    {
+      "bom-ref": "pkg:golang/golang.org/x/time@v0.16.0",
+      "licenses": [
+        {
+          "expression": "BSD-3-Clause"
+        }
+      ],
+      "name": "golang.org/x/time",
+      "properties": [
+        {
+          "name": "inference:closures",
+          "value": "test-dashboard,test-engine"
+        }
+      ],
+      "purl": "pkg:golang/golang.org/x/time@v0.16.0",
+      "scope": "optional",
+      "type": "library",
+      "version": "v0.16.0"
+    },
+    {
+      "bom-ref": "pkg:golang/golang.org/x/tools@v0.42.0",
+      "licenses": [
+        {
+          "expression": "BSD-3-Clause"
+        }
+      ],
+      "name": "golang.org/x/tools",
+      "purl": "pkg:golang/golang.org/x/tools@v0.42.0",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v0.42.0"
+    },
+    {
+      "bom-ref": "pkg:golang/golang.org/x/tools@v0.49.0",
+      "licenses": [
+        {
+          "expression": "BSD-3-Clause"
+        }
+      ],
+      "name": "golang.org/x/tools",
+      "purl": "pkg:golang/golang.org/x/tools@v0.49.0",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v0.49.0"
+    },
+    {
+      "bom-ref": "pkg:golang/gonum.org/v1/gonum@v0.17.0",
+      "licenses": [
+        {
+          "expression": "BSD-3-Clause"
+        }
+      ],
+      "name": "gonum.org/v1/gonum",
+      "purl": "pkg:golang/gonum.org/v1/gonum@v0.17.0",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v0.17.0"
+    },
+    {
+      "bom-ref": "pkg:golang/google.golang.org/api@v0.278.0",
+      "licenses": [
+        {
+          "expression": "BSD-3-Clause"
+        }
+      ],
+      "name": "google.golang.org/api",
+      "purl": "pkg:golang/google.golang.org/api@v0.278.0",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v0.278.0"
+    },
+    {
+      "bom-ref": "pkg:golang/google.golang.org/genproto/googleapis/api@v0.0.0-20260706201446-f0a921348800",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "google.golang.org/genproto/googleapis/api",
+      "purl": "pkg:golang/google.golang.org/genproto/googleapis/api@v0.0.0-20260706201446-f0a921348800",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v0.0.0-20260706201446-f0a921348800"
+    },
+    {
+      "bom-ref": "pkg:golang/google.golang.org/genproto/googleapis/rpc@v0.0.0-20260706201446-f0a921348800",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "google.golang.org/genproto/googleapis/rpc",
+      "properties": [
+        {
+          "name": "inference:closures",
+          "value": "engine"
+        }
+      ],
+      "purl": "pkg:golang/google.golang.org/genproto/googleapis/rpc@v0.0.0-20260706201446-f0a921348800",
+      "scope": "required",
+      "type": "library",
+      "version": "v0.0.0-20260706201446-f0a921348800"
+    },
+    {
+      "bom-ref": "pkg:golang/google.golang.org/grpc@v1.84.0",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "google.golang.org/grpc",
+      "properties": [
+        {
+          "name": "inference:closures",
+          "value": "engine"
+        }
+      ],
+      "purl": "pkg:golang/google.golang.org/grpc@v1.84.0",
+      "scope": "required",
+      "type": "library",
+      "version": "v1.84.0"
+    },
+    {
+      "bom-ref": "pkg:golang/google.golang.org/protobuf@v1.36.12",
+      "licenses": [
+        {
+          "expression": "BSD-3-Clause"
+        }
+      ],
+      "name": "google.golang.org/protobuf",
+      "properties": [
+        {
+          "name": "inference:closures",
+          "value": "engine"
+        }
+      ],
+      "purl": "pkg:golang/google.golang.org/protobuf@v1.36.12",
+      "scope": "required",
+      "type": "library",
+      "version": "v1.36.12"
+    },
+    {
+      "bom-ref": "pkg:golang/gopkg.in/check.v1@v0.0.0-20161208181325-20d25e280405",
+      "licenses": [
+        {
+          "expression": "BSD-2-Clause"
+        }
+      ],
+      "name": "gopkg.in/check.v1",
+      "purl": "pkg:golang/gopkg.in/check.v1@v0.0.0-20161208181325-20d25e280405",
+      "scope": "excluded",
+      "type": "library",
+      "version": "v0.0.0-20161208181325-20d25e280405"
+    },
+    {
+      "bom-ref": "pkg:golang/gopkg.in/yaml.v3@v3.0.1",
+      "licenses": [
+        {
+          "expression": "Apache-2.0 OR MIT"
+        }
+      ],
+      "name": "gopkg.in/yaml.v3",
+      "properties": [
+        {
+          "name": "inference:closures",
+          "value": "engine"
+        }
+      ],
+      "purl": "pkg:golang/gopkg.in/yaml.v3@v3.0.1",
+      "scope": "required",
+      "type": "library",
+      "version": "v3.0.1"
+    }
+  ],
+  "dependencies": [
+    {
+      "dependsOn": [
+        "pkg:generic/cuda@12.8.1",
+        "pkg:generic/cuda@12.9.1",
+        "pkg:generic/cuda@13.0.2",
+        "pkg:generic/cuda@13.1.2",
+        "pkg:generic/cudnn@9.10.2.21",
+        "pkg:generic/cudnn@9.14.0.64",
+        "pkg:generic/cudnn@9.17.1.4",
+        "pkg:generic/cudnn@9.8.0.87",
+        "pkg:generic/go@1.26.10",
+        "pkg:generic/migraphx@7.1",
+        "pkg:generic/onnxruntime@1.31.0",
+        "pkg:generic/openvino@2026.2.1",
+        "pkg:generic/qnn@2.51.0.260929",
+        "pkg:generic/tensorrt@10.14.1.48",
+        "pkg:generic/tensorrt@10.15.1.29",
+        "pkg:golang/github.com/beorn7/perks@v1.0.1",
+        "pkg:golang/github.com/cespare/xxhash/v2@v2.3.0",
+        "pkg:golang/github.com/fsnotify/fsnotify@v1.10.1",
+        "pkg:golang/github.com/golang-jwt/jwt/v5@v5.3.1",
+        "pkg:golang/github.com/klauspost/compress@v1.20.1",
+        "pkg:golang/github.com/microsoft/onnxruntime/go@v0.0.0-20261013071300-9036f076a2ce",
+        "pkg:golang/github.com/munnerz/goautoneg@v0.0.0-20191010083416-a7dc8b61c822",
+        "pkg:golang/github.com/nats-io/nats.go@v1.54.0",
+        "pkg:golang/github.com/nats-io/nkeys@v0.4.16",
+        "pkg:golang/github.com/nats-io/nuid@v1.0.1",
+        "pkg:golang/github.com/prometheus/client_golang@v1.25.0",
+        "pkg:golang/github.com/prometheus/client_model@v0.6.3",
+        "pkg:golang/github.com/prometheus/common@v0.72.0",
+        "pkg:golang/github.com/prometheus/procfs@v0.22.0",
+        "pkg:golang/golang.org/x/crypto@v0.57.0",
+        "pkg:golang/golang.org/x/net@v0.60.0",
+        "pkg:golang/golang.org/x/sys@v0.48.0",
+        "pkg:golang/golang.org/x/text@v0.42.0",
+        "pkg:golang/google.golang.org/genproto/googleapis/rpc@v0.0.0-20260706201446-f0a921348800",
+        "pkg:golang/google.golang.org/grpc@v1.84.0",
+        "pkg:golang/google.golang.org/protobuf@v1.36.12",
+        "pkg:golang/gopkg.in/yaml.v3@v3.0.1"
+      ],
+      "ref": "pkg:golang/github.com/eclipse-iofog/ai-inference-onnx"
+    }
+  ],
+  "metadata": {
+    "component": {
+      "bom-ref": "pkg:golang/github.com/eclipse-iofog/ai-inference-onnx",
+      "description": "Source tree. This document describes the engine module, the dashboard module, and the runtime pins. It does not describe one image.",
+      "licenses": [
+        {
+          "expression": "EPL-2.0"
+        }
+      ],
+      "name": "ai-inference-onnx",
+      "purl": "pkg:golang/github.com/eclipse-iofog/ai-inference-onnx",
+      "scope": "required",
+      "type": "application",
+      "version": "NOASSERTION"
+    },
+    "timestamp": "1970-01-01T00:00:00Z",
+    "tools": {
+      "components": [
+        {
+          "name": "inference-licensegen",
+          "type": "application",
+          "version": "1"
+        }
+      ]
+    }
+  },
+  "serialNumber": "urn:uuid:7f60c4ea-f230-5dd1-9880-378a06d8a066",
+  "specVersion": "1.6",
+  "version": 1
+}

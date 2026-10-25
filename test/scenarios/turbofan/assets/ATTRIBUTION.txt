@@ -1,0 +1,8 @@
+Replay windows are the last 30 cycles of four engines from the NASA Prognostics
+Center of Excellence turbofan degradation sets FD001, FD002, FD003, and FD004.
+
+A. Saxena, K. Goebel, D. Simon, and N. Eklund, “Damage Propagation Modeling for
+Aircraft Engine Run-to-Failure Simulation”, Proceedings of the 1st International
+Conference on Prognostics and Health Management (PHM08), Denver CO, Oct 2008.
+
+https://www.nasa.gov/intelligent-systems-division/discovery-and-systems-health/pcoe/pcoe-data-set-repository/

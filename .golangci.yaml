@@ -16,6 +16,7 @@ formatters:
     paths:
       - ^\.cursor/
       - ^build/
+      - ^licensegen/
       - ^vendor/
 
 linters:
@@ -68,6 +69,7 @@ linters:
     paths:
       - ^\.cursor/
       - ^build/
+      - ^licensegen/
       - ^vendor/
     presets:
       - comments

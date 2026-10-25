@@ -1,0 +1,98 @@
+---
+apiVersion: datasance.com/v3        # iofog.org/v3 
+kind: Application
+metadata:
+  name: inference
+spec:
+  natsConfig:
+    natsAccess: true
+  microservices: []
+
+---
+apiVersion: datasance.com/v3        # iofog.org/v3
+kind: Microservice
+metadata:
+  name: engine
+spec:
+  application: inference
+  agent:
+    name: lab-raspi
+  images:
+    registry: remote
+    amd64: ghcr.io/datasance/ai-inference-onnx:0.1.0-rc.2-ort1.31.0-cpu
+    arm64: ghcr.io/datasance/ai-inference-onnx:0.1.0-rc.2-ort1.31.0-cpu
+    riscv64: ghcr.io/datasance/ai-inference-onnx:0.1.0-rc.2-ort1.31.0-cpu
+  models:
+    bindPath: /models
+    permissions: ro
+    items:
+      - name: wafer-defect
+      - name: turbofan-rul
+  natsConfig:
+    natsAccess: true
+  container:
+    runAsUser: "10001"
+    runAsGroup: "10001"
+    readOnlyRootFilesystem: true
+    tmpfs:
+      - containerPath: /tmp
+        size: 64
+        mode: "1777"
+    env:
+      - key: AUTH_MODE
+        value: edgelet
+      - key: INTRA_OP_THREADS
+        value: "4"
+    ports:
+      - internal: 8000
+        external: 8000
+        protocol: tcp
+      - internal: 8001
+        external: 8001
+        protocol: tcp
+      - internal: 8002
+        external: 8002
+        protocol: tcp
+    healthCheck:
+      test:
+        - CMD
+        - curl
+        - -f 
+        - http://127.0.0.1:8000/v2/health/live
+      interval: 10000
+      timeout: 3000
+      retries: 3
+      startPeriod: 10000
+
+---
+apiVersion: datasance.com/v3        # iofog.org/v3
+kind: Microservice
+metadata:
+  name: dashboard
+spec:
+  application: inference
+  agent:
+    name: lab-raspi
+  images:
+    registry: remote
+    amd64: ghcr.io/datasance/ai-inference-dashboard:0.1.0-rc.2
+    arm64: ghcr.io/datasance/ai-inference-dashboard:0.1.0-rc.2
+  natsConfig:
+    natsAccess: true
+  container:
+    runAsUser: "10001"
+    runAsGroup: "10001"
+    ports:
+      - internal: 8080
+        external: 8080
+        protocol: tcp
+    healthCheck:
+      test:
+        - CMD
+        - curl
+        - -f 
+        - http://127.0.0.1:8080/health
+      interval: 10000
+      timeout: 3000
+      retries: 3
+      startPeriod: 5000

@@ -155,7 +155,7 @@ jobs:
           emit cuda13 "CUDA 13.0.2, cuDNN 9.14.0.64." "$(flag cuda13)"
           emit tensorrt12 "TensorRT 10.14.1.48, then CUDA. CUDA 12.9.1, cuDNN 9.10.2.21." "$(flag tensorrt12)"
           emit tensorrt13 "amd64 is TensorRT 10.14.1.48, CUDA 13.0.2, cuDNN 9.14.0.64. arm64 is TensorRT 10.15.1.29, CUDA 13.1.2, cuDNN 9.17.1.4." "$(flag tensorrt13)"
-          emit qnn "QNN 2.42.0.251225, HTP backend." "$(flag qnn)"
+          emit qnn "QNN 2.51.0.260929, HTP backend." "$(flag qnn)"
           emit openvino "OpenVINO 2026.2.1." "$(flag openvino)"
           emit migraphx "MIGraphX on ROCm 7.1." "$(flag migraphx)"
 
@@ -175,13 +175,27 @@ jobs:
           done
           {
             printf '```\n'
+            printf '\nEach CPU archive has `onnxruntime-1.31.0-cpu-linux-<arch>.cdx.json` and `.spdx.json` beside it.\n'
+            printf 'Each engine image has `inference-<version>-ort1.31.0-<variant>-<arch>.cdx.json` and `.spdx.json`, added after the image is published.\n'
             printf '\nEach attached file has a `.sigstore` bundle.\n\n'
             printf '```bash\n'
             printf 'cosign verify-blob --bundle onnxruntime-1.31.0-linux-amd64.tar.gz.sigstore onnxruntime-1.31.0-linux-amd64.tar.gz\n'
             printf 'cosign verify-blob --bundle onnxruntime-1.31.0-linux-arm64.tar.gz.sigstore onnxruntime-1.31.0-linux-arm64.tar.gz\n'
             printf 'cosign verify-blob --bundle onnxruntime-1.31.0-linux-riscv64.tar.gz.sigstore onnxruntime-1.31.0-linux-riscv64.tar.gz\n'
+            printf 'cosign verify-blob --bundle onnxruntime-1.31.0-cpu-linux-amd64.cdx.json.sigstore onnxruntime-1.31.0-cpu-linux-amd64.cdx.json\n'
+            printf 'cosign verify-blob --bundle onnxruntime-1.31.0-cpu-linux-amd64.spdx.json.sigstore onnxruntime-1.31.0-cpu-linux-amd64.spdx.json\n'
+            printf 'cosign verify-blob --bundle onnxruntime-1.31.0-cpu-linux-arm64.cdx.json.sigstore onnxruntime-1.31.0-cpu-linux-arm64.cdx.json\n'
+            printf 'cosign verify-blob --bundle onnxruntime-1.31.0-cpu-linux-arm64.spdx.json.sigstore onnxruntime-1.31.0-cpu-linux-arm64.spdx.json\n'
+            printf 'cosign verify-blob --bundle onnxruntime-1.31.0-cpu-linux-riscv64.cdx.json.sigstore onnxruntime-1.31.0-cpu-linux-riscv64.cdx.json\n'
+            printf 'cosign verify-blob --bundle onnxruntime-1.31.0-cpu-linux-riscv64.spdx.json.sigstore onnxruntime-1.31.0-cpu-linux-riscv64.spdx.json\n'
             printf '```\n'
           } >> release_notes.md
+
+      - name: Set up Go
+        if: ${{ !startsWith(github.ref_name, 'dashboard/') }}
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version: "1.26.10"
 
       - name: Install cosign
         if: ${{ !startsWith(github.ref_name, 'dashboard/') }}
@@ -199,17 +213,38 @@ jobs:
           fi
           ./scripts/cpu-runtime-archive.sh dist
 
+      - name: Write the CPU runtime SBOMs
+        if: ${{ !startsWith(github.ref_name, 'dashboard/') }}
+        run: |
+          set -euo pipefail
+          for arch in amd64 arm64 riscv64; do
+            archive="dist/onnxruntime-1.31.0-linux-${arch}.tar.gz"
+            test -f "$archive"
+            stage="$(mktemp -d)"
+            tar -C "$stage" -xzf "$archive"
+            (cd licensegen && go run . -root .. -release \
+              -subject runtime \
+              -variant cpu \
+              -arch "$arch" \
+              -version 1.31.0 \
+              -stage "$stage" \
+              -out ../dist)
+            rm -rf "$stage"
+          done
+
       - name: Sign the release files
         if: ${{ !startsWith(github.ref_name, 'dashboard/') }}
         run: |
           set -euo pipefail
-          names="onnxruntime-1.31.0-linux-amd64.tar.gz onnxruntime-1.31.0-linux-arm64.tar.gz onnxruntime-1.31.0-linux-riscv64.tar.gz"
-          for name in $names; do
-            test -f "dist/${name}"
+          for path in dist/*; do
+            case "$path" in
+              *.sigstore) continue ;;
+            esac
+            test -f "$path"
             cosign sign-blob --yes \
-              --bundle "dist/${name}.sigstore" \
-              "dist/${name}"
-            test -f "dist/${name}.sigstore"
+              --bundle "${path}.sigstore" \
+              "$path"
+            test -f "${path}.sigstore"
           done
 
       - name: Publish the engine release

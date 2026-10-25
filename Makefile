@@ -1,5 +1,6 @@
 .PHONY: help fmt vet lint lint-fix install-lint security-code vulncheck test quality \
-	quality-linux quality-linux-amd64 quality-linux-arm64
+	quality-linux quality-linux-amd64 quality-linux-arm64 \
+	runtime-arch runtime-index sbom sbom-check
 
 GOBIN ?= $(shell go env GOBIN)
 ifeq ($(GOBIN),)
@@ -22,9 +23,10 @@ help: ## Show this help message
 	@echo 'Available targets:'
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-22s\033[0m %s\n", $$1, $$2}'
 
-fmt: ## Format the engine module, then the dashboard module
+fmt: ## Format the engine module, the dashboard module, and licensegen
 	go fmt ./...
 	cd dashboard && go fmt ./...
+	gofmt -w licensegen/*.go
 
 vet: ## Run go vet on the engine module, then the dashboard module
 	go vet ./...
@@ -53,7 +55,7 @@ security-code: ## Run gosec on the engine module, then the dashboard module
 		echo "Installing gosec $(GOSEC_VERSION)..."; \
 		go install github.com/securego/gosec/v2/cmd/gosec@$(GOSEC_VERSION); \
 	fi
-	gosec -exclude-dir=.cursor -exclude-dir=dashboard ./...
+	gosec -exclude-dir=.cursor -exclude-dir=dashboard -exclude-dir=licensegen ./...
 	cd dashboard && gosec ./...
 
 vulncheck: ## Scan both modules, then verify module checksums
@@ -83,7 +85,7 @@ test: ## Tests that do not load a session, in both modules
 	CGO_ENABLED=1 go test -race -count=1 $(ENGINE_RACE_PKGS)
 	cd dashboard && CGO_ENABLED=1 go test -race -count=1 ./...
 
-quality: lint vet security-code vulncheck test ## Lint, vet, gosec, vulnerability scan, and test
+quality: lint vet security-code vulncheck test sbom-check ## Lint, vet, gosec, vulnerability scan, test, and SBOM drift
 
 quality-linux-arm64: ## Run vet, lint, vulncheck, and gosec in Linux arm64
 	chmod +x scripts/quality-linux.sh
@@ -95,3 +97,52 @@ quality-linux-amd64: ## Run vet, lint, vulncheck, and gosec in Linux amd64
 
 # On Apple Silicon this is the arm64 Linux parity path.
 quality-linux: quality-linux-arm64 ## Linux parity path
+
+.PHONY: sbom sbom-check
+sbom: ## Regenerate root SBOM documents
+	cd licensegen && go run . -root ..
+
+sbom-check: ## Fail if root SBOM documents are stale
+	cd licensegen && go test ./...
+	cd licensegen && go run . -root .. -check
+
+# Publish one runtime architecture and push it by digest
+# docker buildx create --name runtime --driver docker-container --use
+runtime-arch: ## Build one runtime architecture and push it by digest
+	chmod +x scripts/publish-runtime.sh
+	scripts/publish-runtime.sh arch "$(VARIANT)" "$(ARCH)"
+
+runtime-index: ## Assemble the runtime index and copy it to the fork registry
+	chmod +x scripts/publish-runtime.sh
+	scripts/publish-runtime.sh index "$(VARIANT)"
+
+# Whole runtime commmand list:
+# CPU Variant:
+# make runtime-arch VARIANT=cpu ARCH=amd64
+# make runtime-arch VARIANT=cpu ARCH=arm64
+# make runtime-arch VARIANT=cpu ARCH=riscv64
+# make runtime-index VARIANT=cpu
+# CUDA 12 Variant:
+# make runtime-arch VARIANT=cuda12 ARCH=amd64
+# make runtime-arch VARIANT=cuda12 ARCH=arm64
+# make runtime-index VARIANT=cuda12
+# CUDA 13 Variant:
+# make runtime-arch VARIANT=cuda13 ARCH=amd64
+# make runtime-arch VARIANT=cuda13 ARCH=arm64
+# make runtime-index VARIANT=cuda13
+# TensorRT 12 Variant:
+# make runtime-arch VARIANT=tensorrt12 ARCH=amd64
+# make runtime-index VARIANT=tensorrt12
+# TensorRT 13 Variant:
+# make runtime-arch VARIANT=tensorrt13 ARCH=amd64
+# make runtime-arch VARIANT=tensorrt13 ARCH=arm64
+# make runtime-index VARIANT=tensorrt13
+# QNN Variant:
+# make runtime-arch VARIANT=qnn ARCH=arm64
+# make runtime-index VARIANT=qnn
+# OpenVINO Variant:
+# make runtime-arch VARIANT=openvino ARCH=amd64
+# make runtime-index VARIANT=openvino
+# MIGraphX Variant:
+# make runtime-arch VARIANT=migraphx ARCH=amd64
+# make runtime-index VARIANT=migraphx

@@ -1,0 +1,41 @@
+{
+  "default": "fd004-031",
+  "engines": [
+    {
+      "id": "fd001-065",
+      "subset": "FD001",
+      "unit": 65,
+      "true_rul": 128,
+      "action": "run",
+      "profile": "sea level",
+      "file": "fd001-065.f32"
+    },
+    {
+      "id": "fd003-082",
+      "subset": "FD003",
+      "unit": 82,
+      "true_rul": 6,
+      "action": "stop",
+      "profile": "sea level",
+      "file": "fd003-082.f32"
+    },
+    {
+      "id": "fd002-086",
+      "subset": "FD002",
+      "unit": 86,
+      "true_rul": 194,
+      "action": "run",
+      "profile": "6 flight conditions",
+      "file": "fd002-086.f32"
+    },
+    {
+      "id": "fd004-031",
+      "subset": "FD004",
+      "unit": 31,
+      "true_rul": 6,
+      "action": "stop",
+      "profile": "6 flight conditions",
+      "file": "fd004-031.f32"
+    }
+  ]
+}

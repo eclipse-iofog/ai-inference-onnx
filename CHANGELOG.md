@@ -5,7 +5,17 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [v0.1.0-rc.3]
+
+### Added
+
+- Software bill of materials. The repository root carries `SBOM.md`, `LICENSE-3RD-PARTY.md`, `sbom.cdx.json`, and `sbom.spdx.json` for the source tree. A release attaches a CycloneDX file and an SPDX file for each engine image and for each CPU runtime archive.
+
+### Fixed
+
+- UBI 9 builds no longer install the `curl` package. The base image already provides `curl-minimal`, and the two packages conflict. This covers the QNN, OpenVINO, and TensorRT engine and runtime images.
+- A TensorRT archive extracts its top-level headers and libraries. The CUDA-style `targets` paths are not in that archive.
+- The MIGraphX runtime image installs `migraphx` and `migraphx-devel` from the ROCm 7.1 image and compiles with GCC 13. The engine image installs the same packages when it stages the ROCm libraries.
 
 ## [v0.1.0-rc.2] - 2026-10-21
 

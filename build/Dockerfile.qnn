@@ -13,7 +13,6 @@ RUN dnf install -y --setopt=install_weak_deps=False \
         gcc-toolset-14-gcc-c++ \
         gcc-toolset-14-binutils \
         ca-certificates \
-        curl \
         tar \
         gzip \
     && go_sum=3f4227ce7b206a513e794f1393adb473a07b46e94d18bd15d1c684bbb7319797 \
@@ -176,7 +175,7 @@ COPY --from=runtime-staging-ubi /staging/ /
 ARG OCI_SOURCE_REPO
 ARG OCI_VERSION
 ARG OCI_REVISION
-ARG QNN_VERSION=2.42.0.251225
+ARG QNN_VERSION=2.51.0.260929
 
 ENV ORT_LIB_PATH=/opt/onnxruntime/lib/libonnxruntime.so.1.31.0 \
     HOME=/home/inference \

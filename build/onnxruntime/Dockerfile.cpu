@@ -1,6 +1,6 @@
 # CPU ONNX Runtime 1.31.0.
 # amd64 and arm64 compile on UBI 9 with GCC 14.
-# riscv64 cross-compiles on the build machine with a pinned riscv64-unknown-linux-gnu toolchain.
+# riscv64 cross-compiles on linux/amd64 with a pinned riscv64-unknown-linux-gnu toolchain.
 # The last stage is a scratch image with the library, headers, licenses, version, and commit.
 
 FROM registry.access.redhat.com/ubi9/ubi:9.8@sha256:16e9e43d99e181463513cc84a514859b1abb9460f1c4d9e208da4b4e51cd5cc3 AS build-ubi
@@ -41,9 +41,8 @@ RUN build-onnxruntime.sh cpu amd64
 FROM build-ubi AS build-arm64
 RUN build-onnxruntime.sh cpu arm64
 
-FROM --platform=$BUILDPLATFORM debian:trixie-slim@sha256:a29215f6a35e51e22adffa17f89e9d2ef06214e64a2bad10d765c46aea49f11f AS build-cross
+FROM --platform=linux/amd64 debian:trixie-slim@sha256:a29215f6a35e51e22adffa17f89e9d2ef06214e64a2bad10d765c46aea49f11f AS build-cross
 
-ARG BUILDARCH
 RUN apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
          ca-certificates \
@@ -54,13 +53,9 @@ RUN apt-get update \
          build-essential \
          binutils \
          patch \
-    && case "$BUILDARCH" in \
-         amd64) cmake_arch=x86_64; cmake_sum=312d78e0b7c5c9b4a97a87a46c3e525aa84895fe8135c238c4616bba73dc9518 ;; \
-         arm64) cmake_arch=aarch64; cmake_sum=09b7127b09e3d3ed5fa894f4e59f6a01112f267da6acc4249e46dba97b14afcb ;; \
-         *) echo "no CMake archive for ${BUILDARCH}" >&2; exit 1 ;; \
-       esac \
+    && cmake_sum=312d78e0b7c5c9b4a97a87a46c3e525aa84895fe8135c238c4616bba73dc9518 \
     && curl -fsSL -o /tmp/cmake.tgz \
-         "https://github.com/Kitware/CMake/releases/download/v3.31.9/cmake-3.31.9-linux-${cmake_arch}.tar.gz" \
+         "https://github.com/Kitware/CMake/releases/download/v3.31.9/cmake-3.31.9-linux-x86_64.tar.gz" \
     && echo "${cmake_sum}  /tmp/cmake.tgz" | sha256sum -c - \
     && tar -C /usr/local --strip-components=1 -xzf /tmp/cmake.tgz \
     && rm -f /tmp/cmake.tgz \
@@ -76,7 +71,7 @@ RUN apt-get update \
 
 COPY scripts/build-onnxruntime.sh /usr/local/bin/build-onnxruntime.sh
 
-FROM --platform=$BUILDPLATFORM build-cross AS build-riscv64
+FROM --platform=linux/amd64 build-cross AS build-riscv64
 RUN build-onnxruntime.sh cpu riscv64
 
 FROM build-${TARGETARCH} AS build

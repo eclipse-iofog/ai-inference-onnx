@@ -1,4 +1,10 @@
 .cursor
-test/scenarios/.build/
-test/scenarios/assets/wafers/wafer-scratch-001.f32
-test/scenarios/assets/wafers/wafer-scratch-001.txt
+.runtime-publish/
+test/scenarios/vision-inspection/.build/
+test/scenarios/vision-inspection/__pycache__/
+test/scenarios/vision-inspection/assets/wafers/wafer-scratch-001.f32
+test/scenarios/vision-inspection/assets/wafers/wafer-scratch-001.txt
+test/scenarios/turbofan/data/
+test/scenarios/turbofan/.venv/
+test/scenarios/turbofan/.build/
+test/scenarios/turbofan/__pycache__/

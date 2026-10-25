@@ -21,7 +21,6 @@ RUN dnf install -y --setopt=install_weak_deps=False \
         git \
         make \
         ca-certificates \
-        curl \
         tar \
         gzip \
         findutils \

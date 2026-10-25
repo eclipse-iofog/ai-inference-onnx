@@ -1,0 +1,5 @@
+grpcio==1.84.0
+grpcio-tools==1.84.0
+protobuf==7.36.2
+nats-py==2.16.0
+nkeys==0.2.1

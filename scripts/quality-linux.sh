@@ -5,7 +5,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-GO_IMAGE="${GO_IMAGE:-golang:1.26.10-trixie@sha256:7202554ed358a37f41c44e4910ae29bbc5ef0715f289ac637218adbb0ca132dd}"
+GO_IMAGE="${GO_IMAGE:-golang:1.26.10-trixie@sha256:909771fef53e3dcb0950255f0c9a8b4728c3b841e61509c7b29b098de7ee02d4}"
 GOARCH="${GOARCH:-arm64}"
 GOLANGCI_LINT_VERSION="${GOLANGCI_LINT_VERSION:-v2.12.2}"
 GOVULNCHECK_VERSION="${GOVULNCHECK_VERSION:-v1.1.4}"
@@ -39,7 +39,7 @@ docker run --rm --platform "linux/${GOARCH}" \
 
 		go install github.com/securego/gosec/v2/cmd/gosec@${GOSEC_VERSION}
 		echo '=== gosec ==='
-		gosec -exclude-dir=.cursor -exclude-dir=dashboard ./...
+		gosec -exclude-dir=.cursor -exclude-dir=dashboard -exclude-dir=licensegen ./...
 		(cd dashboard && gosec ./...)
 	"
 

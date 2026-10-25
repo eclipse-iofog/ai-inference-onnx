@@ -5,7 +5,7 @@
 
 FROM scratch AS onnxruntime
 
-FROM nvidia/cuda:12.9.1-cudnn-devel-ubi9@sha256:6d174b550260641b03fbd23c2f7cf56e1f1d699fe7862ea376f04a702b796ca5 AS engine-ubi
+FROM nvcr.io/nvidia/cuda:12.9.1-cudnn-devel-ubi9@sha256:6d174b550260641b03fbd23c2f7cf56e1f1d699fe7862ea376f04a702b796ca5 AS engine-ubi
 
 ARG TARGETARCH
 RUN if [ "$TARGETARCH" != amd64 ]; then echo "TensorRT 12 is built for amd64" >&2; exit 1; fi
@@ -14,7 +14,6 @@ RUN dnf install -y --setopt=install_weak_deps=False \
         gcc-toolset-14-gcc-c++ \
         gcc-toolset-14-binutils \
         ca-certificates \
-        curl \
         tar \
         gzip \
     && case "$TARGETARCH" in \
@@ -46,7 +45,7 @@ RUN set -eu; \
       exit 1; \
     fi
 
-FROM nvidia/cuda:12.9.1-cudnn-runtime-ubi9@sha256:ef77e569ec9abe698db587bf37109fa26bada593765c4f055af5a3320a32cde7 AS cuda-libs
+FROM nvcr.io/nvidia/cuda:12.9.1-cudnn-runtime-ubi9@sha256:ef77e569ec9abe698db587bf37109fa26bada593765c4f055af5a3320a32cde7 AS cuda-libs
 
 RUN bash <<'ENDSCRIPT'
 set -euo pipefail
@@ -121,8 +120,6 @@ tar -C /tmp/tensorrt-src -xzf /tmp/tensorrt.tar.gz \
   --wildcards \
   '*/lib/*.so' \
   '*/lib/*.so.*' \
-  '*/targets/*/lib/*.so' \
-  '*/targets/*/lib/*.so.*' \
   '*/LICENSE' \
   '*/LICENSE.txt' \
   '*/License.txt' \

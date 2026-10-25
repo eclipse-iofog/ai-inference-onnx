@@ -2,188 +2,17 @@ name: ONNX Runtime
 
 on:
   workflow_dispatch:
-    inputs:
-      variants:
-        description: Comma-separated variants
-        required: false
-        default: cpu
-        type: string
-  push:
-    branches:
-      - develop
-    paths:
-      - scripts/build-onnxruntime.sh
-      - build/onnxruntime/Dockerfile.*
 
 permissions: read-all
 
 jobs:
-  select:
-    name: Select variants
+  sign:
+    name: Sign recorded runtimes
     runs-on: ubuntu-24.04
-    outputs:
-      matrix: ${{ steps.plan.outputs.matrix }}
-      built: ${{ steps.plan.outputs.built }}
-    steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-        with:
-          fetch-depth: 0
-
-      - name: Decide which variants to build
-        id: plan
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          BEFORE_SHA: ${{ github.event.before }}
-          VARIANTS: ${{ inputs.variants }}
-          ORT_LARGE_RUNNER_AMD64: ${{ vars.ORT_LARGE_RUNNER_AMD64 }}
-          ORT_LARGE_RUNNER_ARM64: ${{ vars.ORT_LARGE_RUNNER_ARM64 }}
-          QNN_SDK_URL: ${{ secrets.QNN_SDK_URL }}
-          QNN_SDK_SHA256: ${{ secrets.QNN_SDK_SHA256 }}
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          import json
-          import os
-          import subprocess
-          import sys
-
-          all_variants = [
-              "cpu",
-              "cuda12",
-              "cuda13",
-              "tensorrt12",
-              "tensorrt13",
-              "qnn",
-              "openvino",
-              "migraphx",
-          ]
-          platforms = {
-              "cpu": ["amd64", "arm64", "riscv64"],
-              "cuda12": ["amd64", "arm64"],
-              "cuda13": ["amd64", "arm64"],
-              "tensorrt12": ["amd64"],
-              "tensorrt13": ["amd64", "arm64"],
-              "qnn": ["arm64"],
-              "openvino": ["amd64"],
-              "migraphx": ["amd64"],
-          }
-          docker_platform = {
-              "amd64": "linux/amd64",
-              "arm64": "linux/arm64",
-              "riscv64": "linux/riscv64",
-          }
-
-          def runner_for(variant, arch):
-              if variant == "cpu":
-                  if arch == "arm64":
-                      return "ubuntu-24.04-arm"
-                  return "ubuntu-24.04"
-              if arch == "arm64":
-                  return os.environ["ORT_LARGE_RUNNER_ARM64"]
-              return os.environ["ORT_LARGE_RUNNER_AMD64"]
-
-          event = os.environ["EVENT_NAME"]
-          if event == "workflow_dispatch":
-              raw = os.environ.get("VARIANTS", "") or "cpu"
-              selected = []
-              for item in raw.split(","):
-                  name = item.strip()
-                  if name and name not in selected:
-                      selected.append(name)
-              if not selected:
-                  selected = ["cpu"]
-          else:
-              before = os.environ.get("BEFORE_SHA", "")
-              if not before or set(before) == {"0"}:
-                  files = subprocess.check_output(
-                      ["git", "ls-tree", "-r", "--name-only", "HEAD"], text=True
-                  ).splitlines()
-              else:
-                  if subprocess.run(
-                      ["git", "cat-file", "-e", f"{before}^{{commit}}"],
-                      stdout=subprocess.DEVNULL,
-                      stderr=subprocess.DEVNULL,
-                  ).returncode != 0:
-                      fetched = subprocess.run(
-                          ["git", "fetch", "--no-tags", "origin", before],
-                          stdout=subprocess.DEVNULL,
-                          stderr=subprocess.DEVNULL,
-                      )
-                      if fetched.returncode != 0:
-                          files = subprocess.check_output(
-                              ["git", "ls-tree", "-r", "--name-only", "HEAD"], text=True
-                          ).splitlines()
-                      else:
-                          files = subprocess.check_output(
-                              ["git", "diff", "--name-only", before, "HEAD"], text=True
-                          ).splitlines()
-                  else:
-                      files = subprocess.check_output(
-                          ["git", "diff", "--name-only", before, "HEAD"], text=True
-                      ).splitlines()
-              if "scripts/build-onnxruntime.sh" in files:
-                  selected = list(all_variants)
-              else:
-                  selected = []
-                  prefix = "build/onnxruntime/Dockerfile."
-                  for path in files:
-                      if path.startswith(prefix):
-                          name = path[len(prefix):]
-                          if name and name not in selected:
-                              selected.append(name)
-
-          matrix = []
-          for variant in selected:
-              proc = subprocess.run(
-                  ["./scripts/provider-sdk-present.sh", variant],
-                  text=True,
-                  capture_output=True,
-              )
-              if proc.returncode == 2:
-                  print(proc.stderr.strip() or f"unknown variant {variant}", file=sys.stderr)
-                  sys.exit(2)
-              if proc.returncode != 0:
-                  sys.stderr.write(proc.stderr)
-                  sys.exit(proc.returncode)
-              state = proc.stdout.strip()
-              if state == "not built":
-                  print(f"{variant} is not built")
-                  continue
-              if state != "present":
-                  print(f"unexpected status for {variant}", file=sys.stderr)
-                  sys.exit(1)
-              for arch in platforms[variant]:
-                  matrix.append(
-                      {
-                          "variant": variant,
-                          "arch": arch,
-                          "platform": docker_platform[arch],
-                          "runner": runner_for(variant, arch),
-                      }
-                  )
-
-          path = os.environ["GITHUB_OUTPUT"]
-          with open(path, "a", encoding="utf-8") as handle:
-              handle.write("matrix<<EOF\n")
-              handle.write(json.dumps(matrix))
-              handle.write("\nEOF\n")
-              handle.write(f"built={'true' if matrix else 'false'}\n")
-          PY
-
-  build:
-    name: ${{ matrix.variant }} ${{ matrix.arch }}
-    needs: select
-    if: needs.select.outputs.built == 'true'
-    runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
       packages: write
       id-token: write
-      attestations: write
-    strategy:
-      fail-fast: false
-      matrix:
-        include: ${{ fromJson(needs.select.outputs.matrix) }}
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
@@ -208,100 +37,7 @@ jobs:
             echo "IMAGE_REGISTRY is empty" >&2
             exit 1
           fi
-          echo "IMAGE_REGISTRY=${registry}" >> "$GITHUB_ENV"
           echo "IMAGE=${registry}/ai-inference-onnx-runtime" >> "$GITHUB_ENV"
-
-      - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
-
-      - uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push by digest
-        id: push
-        if: matrix.variant != 'qnn'
-        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
-        with:
-          context: .
-          file: build/onnxruntime/Dockerfile.${{ matrix.variant }}
-          target: runtime
-          platforms: ${{ matrix.platform }}
-          provenance: true
-          sbom: true
-          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
-
-      - name: Build and push by digest
-        id: pushqnn
-        if: matrix.variant == 'qnn'
-        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
-        with:
-          context: .
-          file: build/onnxruntime/Dockerfile.qnn
-          target: runtime
-          platforms: ${{ matrix.platform }}
-          provenance: true
-          sbom: true
-          secrets: |
-            QNN_SDK_URL=${{ secrets.QNN_SDK_URL }}
-            QNN_SDK_SHA256=${{ secrets.QNN_SDK_SHA256 }}
-          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
-
-      - name: Record the digest
-        env:
-          DIGEST: ${{ steps.push.outputs.digest || steps.pushqnn.outputs.digest }}
-        run: |
-          set -euo pipefail
-          case "$DIGEST" in
-            sha256:*) ;;
-            *) echo "runtime digest is missing" >&2; exit 1 ;;
-          esac
-          printf '%s\n' "$DIGEST" > digest.txt
-
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: runtime-digest-${{ matrix.variant }}-${{ matrix.arch }}
-          path: digest.txt
-          if-no-files-found: error
-
-  publish:
-    name: Publish manifests
-    needs: [select, build]
-    if: always() && needs.select.result == 'success' && (needs.build.result == 'success' || needs.build.result == 'skipped')
-    runs-on: ubuntu-24.04
-    permissions:
-      actions: read
-      contents: read
-      packages: write
-      id-token: write
-      attestations: write
-    steps:
-      - name: Resolve the registry
-        env:
-          IMAGE_REGISTRY: ${{ vars.IMAGE_REGISTRY }}
-        run: |
-          set -euo pipefail
-          registry="${IMAGE_REGISTRY:-}"
-          if [ -z "$registry" ]; then
-            case "${GITHUB_REPOSITORY}" in
-              eclipse-iofog/ai-inference-onnx)
-                registry=ghcr.io/eclipse-iofog
-                ;;
-              *)
-                registry=ghcr.io/datasance
-                ;;
-            esac
-          fi
-          registry="${registry%/}"
-          if [ -z "$registry" ]; then
-            echo "IMAGE_REGISTRY is empty" >&2
-            exit 1
-          fi
-          echo "IMAGE_REGISTRY=${registry}" >> "$GITHUB_ENV"
-          echo "IMAGE=${registry}/ai-inference-onnx-runtime" >> "$GITHUB_ENV"
-
-      - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
 
       - uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
         with:
@@ -311,63 +47,36 @@ jobs:
 
       - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
 
-      - name: Create the manifest and sign it
-        env:
-          BUILD_RESULT: ${{ needs.build.result }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Sign the recorded runtimes
         run: |
           set -euo pipefail
-          if [ "$BUILD_RESULT" != success ]; then
-            echo "No runtime image was built."
-            exit 0
-          fi
-          rm -rf artifacts
-          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --pattern 'runtime-digest-*' --dir artifacts
-          declare -A digests=()
-          for dir in artifacts/runtime-digest-*; do
-            [ -d "$dir" ] || continue
-            name=${dir##*/}
-            rest=${name#runtime-digest-}
-            variant=${rest%-*}
-            digest=$(tr -d '[:space:]' < "$dir/digest.txt")
-            case "$digest" in
-              sha256:*) ;;
-              *) echo "runtime digest is missing for ${variant}" >&2; exit 1 ;;
-            esac
-            digests[$variant]="${digests[$variant]:-} ${digest}"
-          done
-          if [ "${#digests[@]}" -eq 0 ]; then
-            echo "No runtime digest was recorded." >&2
+          lock=build/onnxruntime/runtime-images.txt
+          if [ ! -f "$lock" ]; then
+            echo "runtime-images.txt is missing" >&2
             exit 1
           fi
-          while IFS= read -r variant; do
-            [ -n "$variant" ] || continue
-            refs=()
-            for digest in ${digests[$variant]}; do
-              refs+=("${IMAGE}@${digest}")
-            done
-            tag="${IMAGE}:1.31.0-${variant}"
-            docker buildx imagetools create -t "$tag" "${refs[@]}"
-            manifest=$(docker buildx imagetools inspect --format '{{json .}}' "$tag")
-            index=$(printf '%s' "$manifest" | python3 -c '
-          import json, sys
-          data = json.load(sys.stdin)
-          found = ""
-          for key in ("Digest", "digest"):
-              value = data.get(key)
-              if isinstance(value, str) and value.startswith("sha256:"):
-                  found = value
-                  break
-          if not found:
-              manifest_body = data.get("Manifest") or data.get("manifest") or {}
-              if isinstance(manifest_body, dict):
-                  value = manifest_body.get("digest") or manifest_body.get("Digest") or ""
-                  if isinstance(value, str):
-                      found = value.strip("\"")
-          if not found.startswith("sha256:"):
-              sys.exit("manifest digest is missing")
-          sys.stdout.write(found)
-          ')
-            cosign sign --yes "${IMAGE}@${index}"
-            printf '%s 1.31.0-%s@%s\n' "$variant" "$variant" "$index" | tee -a "$GITHUB_STEP_SUMMARY"
-          done < <(printf '%s\n' "${!digests[@]}" | sort)
+          found=0
+          while IFS= read -r raw || [ -n "$raw" ]; do
+            line="${raw#"${raw%%[![:space:]]*}"}"
+            line="${line%"${line##*[![:space:]]}"}"
+            case "$line" in
+              "" | \#*) continue ;;
+            esac
+            variant="${line%% *}"
+            rest="${line#"$variant"}"
+            rest="${rest#"${rest%%[![:space:]]*}"}"
+            case "$rest" in
+              1.31.0-"${variant}"@sha256:*) ;;
+              *)
+                echo "runtime-images.txt line is malformed" >&2
+                exit 1
+                ;;
+            esac
+            digest="${rest##*@}"
+            cosign sign --yes "${IMAGE}@${digest}"
+            found=1
+          done <"$lock"
+          if [ "$found" -ne 1 ]; then
+            echo "runtime-images.txt has no runtime" >&2
+            exit 1
+          fi

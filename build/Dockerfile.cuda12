@@ -5,7 +5,7 @@
 
 FROM scratch AS onnxruntime
 
-FROM nvidia/cuda:12.8.1-cudnn-devel-ubi9@sha256:3de998c28746389d98b4108b9719ca4675249545015fa92f95b6d08c048e080b AS engine-ubi
+FROM nvcr.io/nvidia/cuda:12.8.1-cudnn-devel-ubi9@sha256:3de998c28746389d98b4108b9719ca4675249545015fa92f95b6d08c048e080b AS engine-ubi
 
 ARG TARGETARCH
 RUN dnf install -y --setopt=install_weak_deps=False \
@@ -13,7 +13,6 @@ RUN dnf install -y --setopt=install_weak_deps=False \
         gcc-toolset-14-gcc-c++ \
         gcc-toolset-14-binutils \
         ca-certificates \
-        curl \
         tar \
         gzip \
     && case "$TARGETARCH" in \
@@ -45,7 +44,7 @@ RUN set -eu; \
       exit 1; \
     fi
 
-FROM nvidia/cuda:12.8.1-cudnn-runtime-ubi9@sha256:f28b03fce48761f4bf478e1648cc0ad829c1ec614bc200407ef268456a62ed33 AS cuda-libs
+FROM nvcr.io/nvidia/cuda:12.8.1-cudnn-runtime-ubi9@sha256:f28b03fce48761f4bf478e1648cc0ad829c1ec614bc200407ef268456a62ed33 AS cuda-libs
 
 RUN bash <<'ENDSCRIPT'
 set -euo pipefail

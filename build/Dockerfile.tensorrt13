@@ -7,7 +7,7 @@
 FROM scratch AS onnxruntime
 
 
-FROM nvidia/cuda:13.0.2-cudnn-devel-ubi9@sha256:5a639207552c0322cf958b86149c7ab4d3d96b29eeb37ff523817c10b2afebc2 AS engine-amd64
+FROM nvcr.io/nvidia/cuda:13.0.2-cudnn-devel-ubi9@sha256:5a639207552c0322cf958b86149c7ab4d3d96b29eeb37ff523817c10b2afebc2 AS engine-amd64
 
 ARG TARGETARCH
 RUN dnf install -y --setopt=install_weak_deps=False \
@@ -15,7 +15,6 @@ RUN dnf install -y --setopt=install_weak_deps=False \
         gcc-toolset-14-gcc-c++ \
         gcc-toolset-14-binutils \
         ca-certificates \
-        curl \
         tar \
         gzip \
     && case "$TARGETARCH" in \
@@ -47,7 +46,7 @@ RUN set -eu; \
       exit 1; \
     fi
 
-FROM nvidia/cuda:13.1.2-cudnn-devel-ubi9@sha256:e58c8ebbe874975327026dd2829f0d11ca18df32de0348f3999a2958245e2cb9 AS engine-arm64
+FROM nvcr.io/nvidia/cuda:13.1.2-cudnn-devel-ubi9@sha256:e58c8ebbe874975327026dd2829f0d11ca18df32de0348f3999a2958245e2cb9 AS engine-arm64
 
 ARG TARGETARCH
 RUN dnf install -y --setopt=install_weak_deps=False \
@@ -55,7 +54,6 @@ RUN dnf install -y --setopt=install_weak_deps=False \
         gcc-toolset-14-gcc-c++ \
         gcc-toolset-14-binutils \
         ca-certificates \
-        curl \
         tar \
         gzip \
     && case "$TARGETARCH" in \
@@ -89,7 +87,7 @@ RUN set -eu; \
 
 FROM engine-${TARGETARCH} AS engine
 
-FROM nvidia/cuda:13.0.2-cudnn-runtime-ubi9@sha256:30cd1e776cc0d186b95d650b2b29f3ca2e11a2457b87b3be6d229b27f7b96d18 AS cuda-libs-amd64
+FROM nvcr.io/nvidia/cuda:13.0.2-cudnn-runtime-ubi9@sha256:30cd1e776cc0d186b95d650b2b29f3ca2e11a2457b87b3be6d229b27f7b96d18 AS cuda-libs-amd64
 
 RUN bash <<'ENDSCRIPT'
 set -euo pipefail
@@ -144,7 +142,7 @@ fi
 cp -a "$license" /out/licenses/cuda-cudart-LICENSE
 ENDSCRIPT
 
-FROM nvidia/cuda:13.1.2-cudnn-runtime-ubi9@sha256:ad4982a6342e00980ce725d2cdc309958ec081052bf68e58ac7c30ce7ad270c6 AS cuda-libs-arm64
+FROM nvcr.io/nvidia/cuda:13.1.2-cudnn-runtime-ubi9@sha256:ad4982a6342e00980ce725d2cdc309958ec081052bf68e58ac7c30ce7ad270c6 AS cuda-libs-arm64
 
 RUN bash <<'ENDSCRIPT'
 set -euo pipefail
@@ -219,8 +217,6 @@ tar -C /tmp/tensorrt-src -xzf /tmp/tensorrt.tar.gz \
   --wildcards \
   '*/lib/*.so' \
   '*/lib/*.so.*' \
-  '*/targets/*/lib/*.so' \
-  '*/targets/*/lib/*.so.*' \
   '*/LICENSE' \
   '*/LICENSE.txt' \
   '*/License.txt' \
@@ -293,8 +289,6 @@ tar -C /tmp/tensorrt-src -xzf /tmp/tensorrt.tar.gz \
   --wildcards \
   '*/lib/*.so' \
   '*/lib/*.so.*' \
-  '*/targets/*/lib/*.so' \
-  '*/targets/*/lib/*.so.*' \
   '*/LICENSE' \
   '*/LICENSE.txt' \
   '*/License.txt' \

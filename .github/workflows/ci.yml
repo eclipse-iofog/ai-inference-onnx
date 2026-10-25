@@ -64,6 +64,14 @@ jobs:
           CGO_ENABLED=0 go test -fuzz=FuzzDecodeTensor -fuzztime=30s ./internal/batch/
           python3 scripts/check-dockerfile-pins.py
 
+      - name: SBOM drift gate
+        if: matrix.name == 'Engine'
+        working-directory: ${{ github.workspace }}
+        run: |
+          gofmt -w licensegen/*.go
+          git diff --exit-code
+          make sbom-check
+
   cpu-image:
     name: CPU image (${{ matrix.runner }})
     runs-on: ${{ matrix.runner }}

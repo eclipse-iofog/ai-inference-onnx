@@ -21,7 +21,7 @@ TENSORRT13_ARM64_VERSION=10.15.1.29
 TENSORRT13_ARM64_CUDA_VERSION=13.1.2
 TENSORRT13_ARM64_CUDNN_VERSION=9.17.1.4
 OPENVINO_VERSION=2026.2.1
-QNN_VERSION=2.42.0.251225
+QNN_VERSION=2.51.0.260929
 ROCM_VERSION=7.1
 
 # CUDA is /usr/local/cuda. These UBI images install cuDNN under /usr
@@ -84,8 +84,14 @@ matrix_ok() {
 }
 
 parallel_args() {
+  local variant="$1"
+  local cap="" mem_kb jobs cpus
+  # CUDA and TensorRT compile one file at a time. Four of those files fit
+  # on the build machine; more of them run it out of memory.
+  case "$variant" in
+    cuda12 | cuda13 | tensorrt12 | tensorrt13) cap=4 ;;
+  esac
   if [[ -r /proc/meminfo ]]; then
-    local mem_kb jobs cpus
     mem_kb="$(awk '/MemTotal/ {print $2}' /proc/meminfo)"
     cpus="$(getconf _NPROCESSORS_ONLN)"
     # A compile of this tree uses a few gigabytes per job.
@@ -96,7 +102,12 @@ parallel_args() {
     if [[ "$jobs" -gt "$cpus" ]]; then
       jobs="$cpus"
     fi
+    if [[ -n "$cap" && "$jobs" -gt "$cap" ]]; then
+      jobs="$cap"
+    fi
     printf '%s\n' --parallel "$jobs"
+  elif [[ -n "$cap" ]]; then
+    printf '%s\n' --parallel "$cap"
   else
     printf '%s\n' --parallel
   fi
@@ -136,7 +147,7 @@ set_flags() {
   )
   while IFS= read -r arg; do
     FLAGS+=("$arg")
-  done < <(parallel_args)
+  done < <(parallel_args "$variant")
 
   case "$arch" in
     amd64 | riscv64) FLAGS+=(--no_kleidiai) ;;
@@ -156,14 +167,14 @@ set_flags() {
   case "$variant" in
     cpu) ;;
     cuda12)
-      FLAGS+=(--use_cuda --cuda_version "$CUDA12_VERSION" --cuda_home "$CUDA_HOME" --cudnn_home "$CUDNN_HOME")
+      FLAGS+=(--use_cuda --nvcc_threads 1 --cuda_version "$CUDA12_VERSION" --cuda_home "$CUDA_HOME" --cudnn_home "$CUDNN_HOME")
       ;;
     cuda13)
-      FLAGS+=(--use_cuda --cuda_version "$CUDA13_VERSION" --cuda_home "$CUDA_HOME" --cudnn_home "$CUDNN_HOME")
+      FLAGS+=(--use_cuda --nvcc_threads 1 --cuda_version "$CUDA13_VERSION" --cuda_home "$CUDA_HOME" --cudnn_home "$CUDNN_HOME")
       ;;
     tensorrt12)
       FLAGS+=(
-        --use_cuda --cuda_version "$TENSORRT12_CUDA_VERSION" --cuda_home "$CUDA_HOME" --cudnn_home "$CUDNN_HOME"
+        --use_cuda --nvcc_threads 1 --cuda_version "$TENSORRT12_CUDA_VERSION" --cuda_home "$CUDA_HOME" --cudnn_home "$CUDNN_HOME"
         --use_tensorrt --tensorrt_home "$(tensorrt_home tensorrt12 amd64)"
       )
       ;;
@@ -174,7 +185,7 @@ set_flags() {
         cuda="$TENSORRT13_AMD64_CUDA_VERSION"
       fi
       FLAGS+=(
-        --use_cuda --cuda_version "$cuda" --cuda_home "$CUDA_HOME" --cudnn_home "$CUDNN_HOME"
+        --use_cuda --nvcc_threads 1 --cuda_version "$cuda" --cuda_home "$CUDA_HOME" --cudnn_home "$CUDNN_HOME"
         --use_tensorrt --tensorrt_home "$(tensorrt_home tensorrt13 "$arch")"
       )
       ;;

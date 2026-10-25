@@ -1,0 +1,10 @@
+apiVersion: datasance.com/v3        # iofog.org/v3
+kind: Model
+metadata:
+  name: turbofan-rul
+spec:
+  repo: docker.io/emirhandurmus/turbofan-rul
+  # Replace latest with the digest printed by make model-push.
+  revision: latest
+  registryId: 1
+  format: onnx

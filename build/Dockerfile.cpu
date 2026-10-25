@@ -44,7 +44,7 @@ RUN set -eu; \
       exit 1; \
     fi
 
-FROM --platform=$BUILDPLATFORM golang:1.26.10-trixie@sha256:7202554ed358a37f41c44e4910ae29bbc5ef0715f289ac637218adbb0ca132dd AS engine-cross
+FROM --platform=$BUILDPLATFORM golang:1.26.10-trixie@sha256:909771fef53e3dcb0950255f0c9a8b4728c3b841e61509c7b29b098de7ee02d4 AS engine-cross
 
 ARG TARGETARCH
 RUN apt-get update \

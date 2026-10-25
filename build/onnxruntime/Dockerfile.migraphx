@@ -1,6 +1,6 @@
 # MIGraphX ONNX Runtime 1.31.0.
 # amd64 compiles on the ROCm 7.1 AlmaLinux 8 development image.
-# AlmaLinux 8 and GCC 11 stay within this image's glibc and libstdc++.
+# AlmaLinux 8 and GCC 13 stay within this image's glibc and libstdc++.
 # The engine image stages the ROCm runtime libraries.
 
 FROM rocm/dev-almalinux-8:7.1-complete@sha256:4aff9b792f62571ef7245fdf0932db06f936f38ea1fc60454a18c371c08f1c5c AS build-ubi
@@ -9,9 +9,9 @@ ARG TARGETARCH
 
 RUN if [ "$TARGETARCH" != amd64 ]; then echo "MIGraphX is built for amd64" >&2; exit 1; fi
 RUN dnf install -y --setopt=install_weak_deps=False \
-        gcc-toolset-11 \
-        gcc-toolset-11-gcc-c++ \
-        gcc-toolset-11-binutils \
+        gcc-toolset-13 \
+        gcc-toolset-13-gcc-c++ \
+        gcc-toolset-13-binutils \
         binutils \
         python3.12 \
         git \
@@ -23,6 +23,8 @@ RUN dnf install -y --setopt=install_weak_deps=False \
         findutils \
         patch \
         zlib-devel \
+        migraphx \
+        migraphx-devel \
     && cmake_sum=312d78e0b7c5c9b4a97a87a46c3e525aa84895fe8135c238c4616bba73dc9518 \
     && curl -fsSL -o /tmp/cmake.tgz \
          "https://github.com/Kitware/CMake/releases/download/v3.31.9/cmake-3.31.9-linux-x86_64.tar.gz" \
@@ -32,7 +34,7 @@ RUN dnf install -y --setopt=install_weak_deps=False \
     && dnf clean all \
     && rm -rf /var/cache/dnf
 
-ENV PATH=/opt/rh/gcc-toolset-11/root/usr/bin:/opt/rocm/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+ENV PATH=/opt/rh/gcc-toolset-13/root/usr/bin:/opt/rocm/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
     LDFLAGS= \
     LD_LIBRARY_PATH=/opt/rocm/lib
 

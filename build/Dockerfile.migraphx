@@ -44,6 +44,12 @@ RUN set -eu; \
 
 FROM rocm/dev-almalinux-8:7.1-complete@sha256:4aff9b792f62571ef7245fdf0932db06f936f38ea1fc60454a18c371c08f1c5c AS rocm-libs
 
+RUN dnf install -y --setopt=install_weak_deps=False \
+        migraphx \
+        migraphx-devel \
+    && dnf clean all \
+    && rm -rf /var/cache/dnf
+
 RUN bash <<'ENDSCRIPT'
 set -euo pipefail
 mkdir -p /out/lib /out/licenses /out/share
