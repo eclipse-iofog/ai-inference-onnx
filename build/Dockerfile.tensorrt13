@@ -206,7 +206,7 @@ ARG TENSORRT_VERSION=10.14.1.48
 ARG TENSORRT_URL=https://developer.nvidia.com/downloads/compute/machine-learning/tensorrt/10.14.1/tars/TensorRT-10.14.1.48.Linux.x86_64-gnu.cuda-13.0.tar.gz
 ARG TENSORRT_SHA256=c74af67db57f1a0d7e66bb01ab93f1ecda5facac491ca76e680d832f1e035ce6
 
-RUN microdnf install -y --setopt=install_weak_deps=0 ca-certificates curl tar gzip findutils bash \
+RUN microdnf install -y --setopt=install_weak_deps=0 ca-certificates tar gzip findutils bash \
     && microdnf clean all
 RUN TENSORRT_VERSION="$TENSORRT_VERSION" TENSORRT_URL="$TENSORRT_URL" TENSORRT_SHA256="$TENSORRT_SHA256" bash <<'ENDSCRIPT'
 set -euo pipefail
@@ -278,7 +278,7 @@ ARG TENSORRT_VERSION=10.15.1.29
 ARG TENSORRT_URL=https://developer.nvidia.com/downloads/compute/machine-learning/tensorrt/10.15.1/tars/TensorRT-10.15.1.29.Linux.aarch64-gnu.cuda-13.1.tar.gz
 ARG TENSORRT_SHA256=df0c112a4d66bd8ef890697297e01558d7338d5c4ac85d4078e814e506bd6da2
 
-RUN microdnf install -y --setopt=install_weak_deps=0 ca-certificates curl tar gzip findutils bash \
+RUN microdnf install -y --setopt=install_weak_deps=0 ca-certificates tar gzip findutils bash \
     && microdnf clean all
 RUN TENSORRT_VERSION="$TENSORRT_VERSION" TENSORRT_URL="$TENSORRT_URL" TENSORRT_SHA256="$TENSORRT_SHA256" bash <<'ENDSCRIPT'
 set -euo pipefail
@@ -423,7 +423,7 @@ check_ldd() {
           /staging/*) ;;
           *)
             case "$base" in
-              libc.so.6|libm.so.6|libdl.so.2|libpthread.so.0|librt.so.1|libgcc_s.so.1|ld-linux-*.so.*) ;;
+              libc.so.6|libm.so.6|libdl.so.2|libpthread.so.0|librt.so.1|libresolv.so.2|libgcc_s.so.1|ld-linux-*.so.*) ;;
               *)
                 echo "$bin: $base is outside the staged root ($path)" >&2
                 return 1
