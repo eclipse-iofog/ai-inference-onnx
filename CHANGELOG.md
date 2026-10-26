@@ -5,6 +5,16 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [dashboard/v0.1.0-rc.3]
+
+### Added
+
+- The engine view graphs request rate, request latency, queue latency, compute latency, and queue depth for the last 15 minutes. Each page reloads every 10 seconds.
+
+### Changed
+
+- Latency is the time added since the previous snapshot, divided by the successes added since that snapshot. Nodes and Models show the request rate, the error percentage, and that latency. A model link on the engine view limits the graphs to that model.
+
 ## [v0.1.0-rc.3]
 
 ### Added
