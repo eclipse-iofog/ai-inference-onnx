@@ -82,7 +82,7 @@ func TestFixtureViews(t *testing.T) {
 	if strings.Count(models, `class="model"`) != 1 {
 		t.Fatal("model rows")
 	}
-	if !strings.Contains(models, ">100</td>") {
+	if !strings.Contains(models, `<span class="unknown">unknown</span>`) || strings.Contains(models, "0.050 ms") || strings.Contains(models, "0.100 ms") {
 		t.Fatal("latency")
 	}
 	if !strings.Contains(models, `href="/engines/engine-a">engine-a</a>`) || !strings.Contains(models, `href="/engines/engine-b">engine-b</a>`) {
@@ -110,11 +110,11 @@ func TestFixtureViews(t *testing.T) {
 	if strings.Index(nodes, "node-1") > strings.Index(nodes, "node-2") {
 		t.Fatal("node order")
 	}
-	if !strings.Contains(nodes, `href="/engines/engine-a">wafer-engine</a> Live yes Ready yes NATS connected yes`) {
-		t.Fatal("node-1 engine")
+	if !strings.Contains(nodes, `href="/engines/engine-a">wafer-engine</a>`) || !strings.Contains(nodes, `href="/engines/engine-b">wafer-engine-b</a>`) {
+		t.Fatal("engine links")
 	}
-	if !strings.Contains(nodes, `href="/engines/engine-b">wafer-engine-b</a> Live yes Ready yes NATS connected yes`) {
-		t.Fatal("node-2 engine")
+	if strings.Count(nodes, `chip-on">Live</span>`) != 2 || strings.Count(nodes, `chip-on">Ready</span>`) != 2 || strings.Count(nodes, `chip-on">NATS</span>`) != 2 {
+		t.Fatal("status chips")
 	}
 	if !strings.Contains(nodes, `<a class="nav active" href="/nodes">Nodes</a>`) {
 		t.Fatal("nodes link")
@@ -142,15 +142,22 @@ func TestFixtureViews(t *testing.T) {
 		"<p>Failures 1</p>",
 		"<p>Average batch size 4.00</p>",
 		`<span class="state-ready">READY</span>`,
-		"<td>2026-10-16T12:00:10Z</td>",
-		">150</td>",
+		"Last snapshot 2026-10-16T12:00:10Z",
+		"<h2>Request latency</h2>",
+		"<h2>Request rate</h2>",
+		"<h2>Queue latency</h2>",
+		"<h2>Compute latency</h2>",
+		"<h2>Queue depth</h2>",
+		"Last 15 minutes.",
+		"Waiting for the next snapshot.",
+		"Refreshes every 10 seconds.",
 	} {
 		if !strings.Contains(engineB, text) {
 			t.Fatalf("missing %s", text)
 		}
 	}
-	if strings.Count(engineB, `class="sample"`) != 1 {
-		t.Fatal("sample rows")
+	if strings.Contains(engineB, `class="sample"`) || strings.Count(engineB, "<svg") != 1 {
+		t.Fatal("sample table or a latency graph before the second snapshot")
 	}
 	if strings.Contains(engineB, "This engine is stale.") || strings.Contains(engineB, "This engine is unknown.") {
 		t.Fatal("failure sentence")
@@ -168,11 +175,159 @@ func TestFixtureViews(t *testing.T) {
 	if !strings.Contains(engineA, "<h1>wafer-engine</h1>") || !strings.Contains(engineA, "<p>Queue depth 0</p>") {
 		t.Fatal("engine-a queue")
 	}
-	if !strings.Contains(engineA, "<p>Average batch size 1.00</p>") || !strings.Contains(engineA, ">50</td>") {
+	if !strings.Contains(engineA, "<p>Average batch size 1.00</p>") || !strings.Contains(engineA, "Request latency unknown") {
 		t.Fatal("engine-a batch or sample latency")
 	}
-	if strings.Count(engineA, `class="sample"`) != 1 {
-		t.Fatal("engine-a samples")
+	if strings.Contains(engineA, "0.050 ms") {
+		t.Fatal("engine-a lifetime latency")
+	}
+}
+
+func TestIntervalGraph(t *testing.T) {
+	at := fixtureAt()
+	now := at
+	snapshots := store.New(func() time.Time { return now })
+	if !snapshots.Accept([]byte(fixtureEngineA)) {
+		t.Fatal("first snapshot was dropped")
+	}
+	now = at.Add(10 * time.Second)
+	next := strings.Replace(fixtureEngineA, `"inference_request_success": 2`, `"inference_request_success": 4`, 1)
+	next = strings.Replace(next, `"inference_request_duration_us": 100`, `"inference_request_duration_us": 300`, 1)
+	next = strings.Replace(next, `"inference_queue_duration_us": 10`, `"inference_queue_duration_us": 30`, 1)
+	next = strings.Replace(next, `"inference_compute_infer_duration_us": 80`, `"inference_compute_infer_duration_us": 180`, 1)
+	next = strings.Replace(next, `"inference_request_failure": {"REJECTED": 0, "CANCELED": 0, "BACKEND": 0, "OTHER": 0}`, `"inference_request_failure": {"REJECTED": 0, "CANCELED": 0, "BACKEND": 0, "OTHER": 1}`, 1)
+	if !snapshots.Accept([]byte(next)) {
+		t.Fatal("second snapshot was dropped")
+	}
+	engine := render(t, func(w io.Writer) error {
+		return page.Engine(w, snapshots, "engine-a", page.ConnectionUp)
+	})
+	for _, text := range []string{
+		"<svg",
+		"<circle",
+		"0.100 ms",
+		"0.010 ms",
+		"0.050 ms",
+		"0.300 /s",
+		"33.3%",
+		"<li class=\"series-0\">Success</li>",
+		"<li class=\"series-1\">Failure</li>",
+		"<li class=\"series-2\">OTHER</li>",
+		"wafer-defect 1 2026-10-16T12:00:10Z 0.100 ms",
+	} {
+		if !strings.Contains(engine, text) {
+			t.Fatalf("missing %s", text)
+		}
+	}
+	if strings.Contains(engine, "<canvas") || strings.Contains(engine, "0.075 ms") || strings.Contains(engine, ">REJECTED</li>") {
+		t.Fatal("lifetime latency or a canvas chart")
+	}
+	if strings.Contains(engine, "<li class=\"series-2\">REJECTED</li>") || strings.Contains(engine, "<li class=\"series-3\">CANCELED</li>") {
+		t.Fatal("zero failure reasons")
+	}
+	selected := render(t, func(w io.Writer) error {
+		return page.EngineModel(w, snapshots, "engine-a", "wafer-defect", page.ConnectionUp)
+	})
+	if !strings.Contains(selected, "0.100 ms") || !strings.Contains(selected, `chip-on" href="/engines/engine-a?model=wafer-defect"`) {
+		t.Fatal("model filter")
+	}
+	missing := render(t, func(w io.Writer) error {
+		return page.EngineModel(w, snapshots, "engine-a", "missing", page.ConnectionUp)
+	})
+	if strings.Count(missing, "This model is not on the latest snapshot.") != 5 || strings.Contains(missing, "<svg") || strings.Contains(missing, "<h2>wafer-defect 1</h2>") {
+		t.Fatal("missing model")
+	}
+
+	now = at.Add(20 * time.Second)
+	third := strings.Replace(next, `"inference_request_success": 4`, `"inference_request_success": 6`, 1)
+	third = strings.Replace(third, `"inference_request_duration_us": 300`, `"inference_request_duration_us": 500`, 1)
+	if !snapshots.Accept([]byte(third)) {
+		t.Fatal("third snapshot was dropped")
+	}
+	line := render(t, func(w io.Writer) error {
+		return page.Engine(w, snapshots, "engine-a", page.ConnectionUp)
+	})
+	if !strings.Contains(line, "<polyline") || strings.Contains(line, "<canvas") {
+		t.Fatal("latency line")
+	}
+
+	now = at.Add(30 * time.Second)
+	reset := strings.Replace(third, `"inference_request_success": 6`, `"inference_request_success": 0`, 1)
+	reset = strings.Replace(reset, `"inference_request_duration_us": 500`, `"inference_request_duration_us": 0`, 1)
+	reset = strings.Replace(reset, `"inference_request_duration_us": 300`, `"inference_request_duration_us": 0`, 1)
+	if !snapshots.Accept([]byte(reset)) {
+		t.Fatal("reset was dropped")
+	}
+	after := render(t, func(w io.Writer) error {
+		return page.Engine(w, snapshots, "engine-a", page.ConnectionUp)
+	})
+	if !strings.Contains(after, "Request latency unknown") || !strings.Contains(after, "0.100 ms") {
+		t.Fatal("reset interval")
+	}
+}
+
+func TestGraphKeepsFifteenMinutes(t *testing.T) {
+	at := fixtureAt()
+	now := at
+	snapshots := store.New(func() time.Time { return now })
+	for i := 0; i <= 120; i++ {
+		now = at.Add(time.Duration(i) * 10 * time.Second)
+		if !snapshots.Accept([]byte(counterSnapshot("engine-a", "wafer-defect", "1", 1+i, i*100))) {
+			t.Fatalf("snapshot %d was dropped", i)
+		}
+	}
+	engine := render(t, func(w io.Writer) error {
+		return page.Engine(w, snapshots, "engine-a", page.ConnectionUp)
+	})
+	if strings.Contains(engine, "2026-10-16T12:00:10Z") {
+		t.Fatal("a point older than 15 minutes stayed on the graph")
+	}
+	if !strings.Contains(engine, "2026-10-16T12:05:10Z 0.100 ms") || !strings.Contains(engine, "2026-10-16T12:20:00Z 0.100 ms") {
+		t.Fatal("newest latency")
+	}
+}
+
+func TestLatencyGraphUsesALogScale(t *testing.T) {
+	at := fixtureAt()
+	now := at
+	snapshots := store.New(func() time.Time { return now })
+	for i, success := range []int{1, 2} {
+		now = at.Add(time.Duration(i) * 10 * time.Second)
+		body := `{
+		  "schema": 1,
+		  "server_id": "engine-a",
+		  "live": true,
+		  "ready": true,
+		  "nats_connected": true,
+		  "models": [
+		    {"model": "turbofan-rul", "version": "1", "state": "READY", "reason": "",
+		      "inference_request_success": ` + strconv.Itoa(success) + `,
+		      "inference_request_failure": {"REJECTED": 0, "CANCELED": 0, "BACKEND": 0, "OTHER": 0},
+		      "inference_count": 1, "inference_exec_count": 1, "inference_pending_request_count": 0,
+		      "inference_request_duration_us": ` + strconv.Itoa(success*200) + `,
+		      "inference_queue_duration_us": 0, "inference_compute_infer_duration_us": ` + strconv.Itoa(success*200) + `,
+		      "inference_model_ready": 1},
+		    {"model": "wafer-defect", "version": "1", "state": "READY", "reason": "",
+		      "inference_request_success": ` + strconv.Itoa(success) + `,
+		      "inference_request_failure": {"REJECTED": 0, "CANCELED": 0, "BACKEND": 0, "OTHER": 0},
+		      "inference_count": 1, "inference_exec_count": 1, "inference_pending_request_count": 0,
+		      "inference_request_duration_us": ` + strconv.Itoa(success*800000) + `,
+		      "inference_queue_duration_us": 0, "inference_compute_infer_duration_us": ` + strconv.Itoa(success*800000) + `,
+		      "inference_model_ready": 1}
+		  ]
+		}`
+		if !snapshots.Accept([]byte(body)) {
+			t.Fatalf("snapshot %d was dropped", i)
+		}
+	}
+	engine := render(t, func(w io.Writer) error {
+		return page.Engine(w, snapshots, "engine-a", page.ConnectionUp)
+	})
+	if strings.Count(engine, "milliseconds, log scale") != 2 || strings.Contains(engine, "Queue latency</h2>\n<p class=\"unit\">milliseconds, log scale") {
+		t.Fatal("log scale")
+	}
+	if !strings.Contains(engine, "0.200 ms") || !strings.Contains(engine, "800.000 ms") {
+		t.Fatal("both latencies")
 	}
 }
 
@@ -201,7 +356,7 @@ func TestStaleEngineLeavesTheLists(t *testing.T) {
 	models := render(t, func(w io.Writer) error {
 		return page.Models(w, snapshots, page.ConnectionUp)
 	})
-	if strings.Contains(models, "engine-a") || strings.Contains(models, ">100</td>") || !strings.Contains(models, "engine-b") || !strings.Contains(models, ">150</td>") {
+	if strings.Contains(models, "engine-a") || !strings.Contains(models, "engine-b") || strings.Contains(models, "0.050 ms") || strings.Contains(models, "0.150 ms") {
 		t.Fatal("age 30 seconds stayed on the models list")
 	}
 	if strings.Count(models, "wafer-defect") != 1 {
@@ -433,10 +588,10 @@ func TestUnsetNodeIsLast(t *testing.T) {
 	if engineC < 0 || engineD < engineC {
 		t.Fatal("engine order")
 	}
-	if !strings.Contains(card, `href="/engines/engine-c">engine-c</a> Live yes Ready no NATS connected no`) {
+	if !strings.Contains(card, `href="/engines/engine-c">engine-c</a>`) || !strings.Contains(card, `chip-on">Live</span>`) || !strings.Contains(card, `chip-off">Ready</span>`) || !strings.Contains(card, `chip-off">NATS</span>`) {
 		t.Fatal("engine-c")
 	}
-	if !strings.Contains(card, `href="/engines/engine-d">engine-d</a> Live no Ready no NATS connected no`) {
+	if !strings.Contains(card, `href="/engines/engine-d">engine-d</a>`) || !strings.Contains(card, `chip-off">Live</span>`) {
 		t.Fatal("engine-d")
 	}
 	models := render(t, func(w io.Writer) error {
@@ -476,7 +631,7 @@ func TestRatiosAndSamples(t *testing.T) {
 	models := render(t, func(w io.Writer) error {
 		return page.Models(w, snapshots, page.ConnectionUp)
 	})
-	if !strings.Contains(models, ">150</td>") || strings.Contains(models, ">100</td>") || strings.Contains(models, ">83</td>") {
+	if !strings.Contains(models, "0 /s") || strings.Contains(models, "0.150 ms") || strings.Contains(models, "0.100 ms") || strings.Contains(models, "0.083 ms") {
 		t.Fatal("models latency")
 	}
 	if strings.Count(models, `href="/engines/engine-a"`) != 1 {
@@ -488,16 +643,16 @@ func TestRatiosAndSamples(t *testing.T) {
 	if !strings.Contains(engine, "<p>Queue depth 4</p>") || strings.Contains(engine, "<p>Queue depth 7</p>") || strings.Contains(engine, "<p>Queue depth 1</p>") {
 		t.Fatal("queue depth")
 	}
-	if strings.Count(engine, `class="sample"`) != 3 {
-		t.Fatal("sample rows")
+	if !strings.Contains(engine, "<svg") || strings.Contains(engine, "<canvas") {
+		t.Fatal("queue graph")
 	}
-	first := strings.Index(engine, "2026-10-16T12:00:00Z")
-	second := strings.Index(engine, "2026-10-16T12:00:10Z")
-	third := strings.Index(engine, "2026-10-16T12:00:20Z")
+	first := strings.Index(engine, "wafer-defect 1 2026-10-16T12:00:00Z 1")
+	second := strings.Index(engine, "wafer-defect 1 2026-10-16T12:00:10Z 2")
+	third := strings.Index(engine, "wafer-defect 1 2026-10-16T12:00:20Z 4")
 	if first < 0 || second < first || third < second {
 		t.Fatal("sample order")
 	}
-	if strings.Count(engine[:second], ">50</td>") != 1 || strings.Count(engine[second:], ">50</td>") != 1 || !strings.Contains(engine[third:], ">150</td>") {
+	if !strings.Contains(engine, "No completed requests in this window.") || strings.Contains(engine, "0.150 ms") || strings.Contains(engine, "0.050 ms") {
 		t.Fatal("sample latency")
 	}
 	nodes := render(t, func(w io.Writer) error {
@@ -516,7 +671,7 @@ func TestRatiosAndSamples(t *testing.T) {
 	models = render(t, func(w io.Writer) error {
 		return page.Models(w, quiet, page.ConnectionUp)
 	})
-	if !strings.Contains(models, `<td class="unknown">unknown</td>`) {
+	if !strings.Contains(models, `<span class="unknown">unknown</span>`) {
 		t.Fatal("unknown latency")
 	}
 	if strings.Contains(models, "NaN") || strings.Contains(models, "+Inf") || strings.Contains(models, "-Inf") {
@@ -525,31 +680,42 @@ func TestRatiosAndSamples(t *testing.T) {
 	sample := render(t, func(w io.Writer) error {
 		return page.Engine(w, quiet, "engine-a", page.ConnectionUp)
 	})
-	if !strings.Contains(sample, `<td class="unknown">unknown</td>`) || strings.Contains(sample, "NaN") || strings.Contains(sample, "+Inf") || strings.Contains(sample, "-Inf") {
+	if !strings.Contains(sample, "Request latency unknown") || strings.Contains(sample, "NaN") || strings.Contains(sample, "+Inf") || strings.Contains(sample, "-Inf") {
 		t.Fatal("sample latency")
 	}
 
-	zero := store.New(func() time.Time { return at })
-	if !zero.Accept([]byte(counterSnapshot("engine-z", "wafer-defect", "1", 4, 0))) {
+	zeroAt := at
+	zero := store.New(func() time.Time { return zeroAt })
+	if !zero.Accept([]byte(counterSnapshot("engine-z", "wafer-defect", "1", 2, 100))) {
 		t.Fatal("zero duration was dropped")
+	}
+	zeroAt = at.Add(10 * time.Second)
+	if !zero.Accept([]byte(counterSnapshot("engine-z", "wafer-defect", "1", 4, 100))) {
+		t.Fatal("zero duration interval was dropped")
 	}
 	models = render(t, func(w io.Writer) error {
 		return page.Models(w, zero, page.ConnectionUp)
 	})
-	if !strings.Contains(models, "<td>0</td>") || strings.Contains(models, `<td class="unknown">`) {
+	row := between(t, models, "<tbody>", "</tbody>")
+	if !strings.Contains(row, "0.000 ms") || strings.Contains(row, "unknown") {
 		t.Fatal("known zero latency")
 	}
 
-	fraction := store.New(func() time.Time { return at })
-	partial := strings.Replace(fixtureEngineA, `"inference_request_success": 2`, `"inference_request_success": 4`, 1)
-	partial = strings.Replace(partial, `"inference_request_duration_us": 100`, `"inference_request_duration_us": 310`, 1)
-	if !fraction.Accept([]byte(partial)) {
+	fractionAt := at
+	fraction := store.New(func() time.Time { return fractionAt })
+	if !fraction.Accept([]byte(fixtureEngineA)) {
 		t.Fatal("snapshot was dropped")
+	}
+	fractionAt = at.Add(10 * time.Second)
+	partial := strings.Replace(fixtureEngineA, `"inference_request_success": 2`, `"inference_request_success": 6`, 1)
+	partial = strings.Replace(partial, `"inference_request_duration_us": 100`, `"inference_request_duration_us": 410`, 1)
+	if !fraction.Accept([]byte(partial)) {
+		t.Fatal("interval was dropped")
 	}
 	models = render(t, func(w io.Writer) error {
 		return page.Models(w, fraction, page.ConnectionUp)
 	})
-	if !strings.Contains(models, ">77</td>") || strings.Contains(models, "77.5") || strings.Contains(models, ">78</td>") {
+	if !strings.Contains(models, "0.077 ms") || strings.Contains(models, "0.078") || strings.Contains(models, "77.5") {
 		t.Fatal("truncated latency")
 	}
 
@@ -601,7 +767,7 @@ func TestSecondModelNameAndStates(t *testing.T) {
 	if strings.Count(models, "wafer-defect") != 1 || strings.Count(models, "surface") != 1 {
 		t.Fatal("names")
 	}
-	if !strings.Contains(models, ">50</td>") || !strings.Contains(models, ">150</td>") {
+	if !strings.Contains(models, `<span class="unknown">unknown</span>`) || strings.Contains(models, "0.050 ms") || strings.Contains(models, "0.150 ms") {
 		t.Fatal("latency")
 	}
 
@@ -651,7 +817,7 @@ func TestSecondModelNameAndStates(t *testing.T) {
 	models = render(t, func(w io.Writer) error {
 		return page.Models(w, versions, page.ConnectionUp)
 	})
-	if strings.Count(models, `class="model"`) != 1 || !strings.Contains(models, ">77</td>") {
+	if strings.Count(models, `class="model"`) != 1 || !strings.Contains(models, `<span class="state-unavailable">UNAVAILABLE</span>`) {
 		t.Fatal("one row")
 	}
 	engine := render(t, func(w io.Writer) error {
@@ -700,7 +866,7 @@ func TestProviderImageStaysUnknown(t *testing.T) {
 	models := render(t, func(w io.Writer) error {
 		return page.Models(w, snapshots, page.ConnectionUp)
 	})
-	if !strings.Contains(models, ">100</td>") || strings.Contains(models, "cpu") {
+	if strings.Contains(models, "cpu") || !strings.Contains(models, "unknown") {
 		t.Fatal("models page")
 	}
 }
@@ -807,6 +973,8 @@ func assertShell(t *testing.T, body string) {
 		"--unavailable: #DC2626;",
 		"--stale: #7A3BFF;",
 		"--unknown: #9CA3AF;",
+		`http-equiv="refresh"`,
+		`content="10"`,
 		"rgba(255, 255, 255, 0.05)",
 		"rgba(55, 65, 81, 0.5)",
 		`font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;`,

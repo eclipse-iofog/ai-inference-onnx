@@ -150,7 +150,7 @@ func TestSnapshotsStayOnTheDashboardAccount(t *testing.T) {
 	if strings.Count(models, `class="model"`) != 1 || strings.Count(models, "wafer-defect") != 1 {
 		t.Fatalf("models row:\n%s", models)
 	}
-	if !strings.Contains(models, `href="/engines/engine-a"`) || !strings.Contains(models, `href="/engines/engine-b"`) || !strings.Contains(models, ">100</td>") {
+	if !strings.Contains(models, `href="/engines/engine-a"`) || !strings.Contains(models, `href="/engines/engine-b"`) || !strings.Contains(models, "unknown") {
 		t.Fatalf("models page:\n%s", models)
 	}
 	if strings.Contains(models, "engine-other") || strings.Contains(models, "other-defect") || strings.Contains(models, "NATS is not") {

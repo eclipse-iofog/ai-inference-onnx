@@ -219,7 +219,7 @@ Tag, device, and license detail: [Images](docs/reference/images.md).
 
 ## Dashboard and metrics
 
-The dashboard listens on 8080. It does not run inference and it does not read the engine config file. It subscribes to `inference.metrics.engines.>` and shows Nodes, Models, and Engine. An engine is stale at 30 seconds and drops off the live view. `GET /health` on the dashboard means the process can answer.
+The dashboard listens on 8080. It does not run inference and it does not read the engine config file. It subscribes to `inference.metrics.engines.>` and shows Nodes, Models, and Engine. The engine view graphs request rate and latency for the last 15 minutes, and each page reloads every 10 seconds. An engine is stale at 30 seconds and drops off the live view. `GET /health` on the dashboard means the process can answer.
 
 `GET /metrics` on the engine publishes the `inference_` prefix for Prometheus. The same numbers are published on NATS. The scrape is open. Model names on that port are operational metadata. NVML gauges are published when NVML loads, which is the CUDA and TensorRT images. Names: [Metrics](docs/reference/metrics.md). The views: [Dashboard](docs/user-guide/dashboard.md).
 

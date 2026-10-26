@@ -54,8 +54,9 @@ func (a *app) models(w http.ResponseWriter, _ *http.Request) {
 
 func (a *app) engine(w http.ResponseWriter, r *http.Request) {
 	serverID := r.PathValue("serverID")
+	model := r.URL.Query().Get("model")
 	a.writePage(w, "engine", func() error {
-		return page.Engine(w, a.snapshots, serverID, a.leaf.status())
+		return page.EngineModel(w, a.snapshots, serverID, model, a.leaf.status())
 	})
 }
 
