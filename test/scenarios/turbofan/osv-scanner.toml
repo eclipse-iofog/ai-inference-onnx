@@ -1,0 +1,17 @@
+[[PackageOverrides]]
+name = "torch"
+ecosystem = "PyPI"
+ignore = true
+reason = "Local model training only. The scenario image does not install this file."
+
+[[PackageOverrides]]
+name = "onnx"
+ecosystem = "PyPI"
+ignore = true
+reason = "Local model training only. The scenario image does not install this file."
+
+[[PackageOverrides]]
+name = "numpy"
+ecosystem = "PyPI"
+ignore = true
+reason = "Local model training only. The scenario image does not install this file."

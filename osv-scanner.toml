@@ -1,0 +1,3 @@
+[[IgnoredVulns]]
+id = "GO-2026-5932"
+reason = "golang.org/x/crypto is indirect. This repository does not import openpgp, and govulncheck finds no call."
