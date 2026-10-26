@@ -87,6 +87,43 @@ RUN set -eu; \
 
 FROM engine-${TARGETARCH} AS engine
 
+# arm64 TensorRT 10.15 needs GLIBCXX_3.4.30. UBI 9 libstdc++ stops at
+# GLIBCXX_3.4.29. GCC 12.3 libstdc++ provides 3.4.30 and needs glibc 2.34.
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8@sha256:2d4c4551af6831dcd26bbf86108c4385de5183ec8fe6b5868f6f9640fe47f4ed AS libstd-arm64
+
+ARG LIBSTDCXX_URL=https://ports.ubuntu.com/ubuntu-ports/pool/main/g/gcc-12/libstdc++6_12.3.0-1ubuntu1~22.04.3_arm64.deb
+ARG LIBSTDCXX_SHA256=59d244119e6129c7e9c0897491c0e210e925d15881b2dedcf8965ceb4fbf1aa3
+ARG LIBSTDCXX_LICENSE_URL=https://ports.ubuntu.com/ubuntu-ports/pool/main/g/gcc-12/gcc-12-base_12.3.0-1ubuntu1~22.04.3_arm64.deb
+ARG LIBSTDCXX_LICENSE_SHA256=b2bc566681989941dd059d6391b01c41854857f26d83c53358287d620dfb0fd4
+
+RUN microdnf install -y --setopt=install_weak_deps=0 ca-certificates bsdtar \
+    && microdnf clean all
+
+RUN LIBSTDCXX_URL="$LIBSTDCXX_URL" LIBSTDCXX_SHA256="$LIBSTDCXX_SHA256" \
+    LIBSTDCXX_LICENSE_URL="$LIBSTDCXX_LICENSE_URL" LIBSTDCXX_LICENSE_SHA256="$LIBSTDCXX_LICENSE_SHA256" \
+    bash <<'ENDSCRIPT'
+set -euo pipefail
+curl -fsSL -o /tmp/libstd.deb "$LIBSTDCXX_URL"
+echo "${LIBSTDCXX_SHA256}  /tmp/libstd.deb" | sha256sum -c -
+mkdir -p /tmp/libstd-src /out/lib
+bsdtar -C /tmp/libstd-src -xf /tmp/libstd.deb data.tar.zst
+bsdtar -C /tmp/libstd-src -xf /tmp/libstd-src/data.tar.zst
+cp -a \
+  /tmp/libstd-src/usr/lib/aarch64-linux-gnu/libstdc++.so.6 \
+  /tmp/libstd-src/usr/lib/aarch64-linux-gnu/libstdc++.so.6.0.30 \
+  /out/lib/
+test -e /out/lib/libstdc++.so.6
+curl -fsSL -o /tmp/libstd-license.deb "$LIBSTDCXX_LICENSE_URL"
+echo "${LIBSTDCXX_LICENSE_SHA256}  /tmp/libstd-license.deb" | sha256sum -c -
+rm -rf /tmp/libstd-src
+mkdir -p /tmp/libstd-src /out/licenses
+bsdtar -C /tmp/libstd-src -xf /tmp/libstd-license.deb data.tar.zst
+bsdtar -C /tmp/libstd-src -xf /tmp/libstd-src/data.tar.zst
+cp -a /tmp/libstd-src/usr/share/doc/gcc-12-base/copyright /out/licenses/libstdc++-copyright
+grep -q 'GCC Runtime Library Exception' /out/licenses/libstdc++-copyright
+rm -rf /tmp/libstd.deb /tmp/libstd-license.deb /tmp/libstd-src
+ENDSCRIPT
+
 FROM nvcr.io/nvidia/cuda:13.0.2-cudnn-runtime-ubi9@sha256:30cd1e776cc0d186b95d650b2b29f3ca2e11a2457b87b3be6d229b27f7b96d18 AS cuda-libs-amd64
 
 RUN bash <<'ENDSCRIPT'
@@ -199,7 +236,7 @@ ENDSCRIPT
 
 FROM cuda-libs-${TARGETARCH} AS cuda-libs
 
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8@sha256:c4c285d42941ebb2bd4da878479008e1e4536bb599aad1dbe568f89de9053661 AS tensorrt-amd64
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8@sha256:2d4c4551af6831dcd26bbf86108c4385de5183ec8fe6b5868f6f9640fe47f4ed AS tensorrt-amd64
 
 ARG TARGETARCH
 ARG TENSORRT_VERSION=10.14.1.48
@@ -213,14 +250,11 @@ set -euo pipefail
 curl -fsSL -o /tmp/tensorrt.tar.gz "$TENSORRT_URL"
 echo "${TENSORRT_SHA256}  /tmp/tensorrt.tar.gz" | sha256sum -c -
 mkdir -p /tmp/tensorrt-src /out/lib /out/licenses
+# doc/ holds Acknowledgements.txt and README.txt. tar exits if a listed name is absent.
 tar -C /tmp/tensorrt-src -xzf /tmp/tensorrt.tar.gz \
   --wildcards \
   '*/lib/*.so' \
   '*/lib/*.so.*' \
-  '*/LICENSE' \
-  '*/LICENSE.txt' \
-  '*/License.txt' \
-  '*/license*' \
   '*/doc/Acknowledgements.txt' \
   '*/doc/README.txt'
 rm -f /tmp/tensorrt.tar.gz
@@ -271,7 +305,7 @@ rm -rf /tmp/tensorrt-src
 ENDSCRIPT
 
 
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8@sha256:c4c285d42941ebb2bd4da878479008e1e4536bb599aad1dbe568f89de9053661 AS tensorrt-arm64
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8@sha256:2d4c4551af6831dcd26bbf86108c4385de5183ec8fe6b5868f6f9640fe47f4ed AS tensorrt-arm64
 
 ARG TARGETARCH
 ARG TENSORRT_VERSION=10.15.1.29
@@ -285,14 +319,11 @@ set -euo pipefail
 curl -fsSL -o /tmp/tensorrt.tar.gz "$TENSORRT_URL"
 echo "${TENSORRT_SHA256}  /tmp/tensorrt.tar.gz" | sha256sum -c -
 mkdir -p /tmp/tensorrt-src /out/lib /out/licenses
+# doc/ holds Acknowledgements.txt and README.txt. tar exits if a listed name is absent.
 tar -C /tmp/tensorrt-src -xzf /tmp/tensorrt.tar.gz \
   --wildcards \
   '*/lib/*.so' \
   '*/lib/*.so.*' \
-  '*/LICENSE' \
-  '*/LICENSE.txt' \
-  '*/License.txt' \
-  '*/license*' \
   '*/doc/Acknowledgements.txt' \
   '*/doc/README.txt'
 rm -f /tmp/tensorrt.tar.gz
@@ -344,7 +375,7 @@ ENDSCRIPT
 
 FROM tensorrt-${TARGETARCH} AS tensorrt
 
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8@sha256:c4c285d42941ebb2bd4da878479008e1e4536bb599aad1dbe568f89de9053661 AS user-staging-ubi
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8@sha256:2d4c4551af6831dcd26bbf86108c4385de5183ec8fe6b5868f6f9640fe47f4ed AS user-staging-ubi
 
 RUN microdnf install -y --setopt=install_weak_deps=0 \
         shadow-utils \
@@ -360,6 +391,8 @@ RUN microdnf install -y --setopt=install_weak_deps=0 \
 
 FROM user-staging-ubi AS runtime-staging-ubi
 
+ARG TARGETARCH
+
 RUN microdnf install -y --setopt=install_weak_deps=0 binutils \
     && microdnf clean all
 
@@ -370,8 +403,10 @@ COPY --from=cuda-libs /out/lib/ /staging/usr/lib64/
 COPY --from=cuda-libs /out/licenses/ /staging/licenses/
 COPY --from=tensorrt /out/lib/ /staging/usr/lib64/
 COPY --from=tensorrt /out/licenses/ /staging/licenses/
+COPY --from=libstd-arm64 /out/lib/ /tmp/libstd/
+COPY --from=libstd-arm64 /out/licenses/ /tmp/libstd-licenses/
 
-RUN bash <<'ENDSCRIPT'
+RUN TARGETARCH="$TARGETARCH" bash <<'ENDSCRIPT'
 set -euo pipefail
 mkdir -p \
   /staging/etc/pki/ca-trust/extracted/pem \
@@ -383,7 +418,19 @@ mkdir -p \
 cp -a /etc/passwd /etc/group /staging/etc/
 cp -a /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem /staging/etc/pki/ca-trust/extracted/pem/
 ln -s /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem /staging/etc/pki/tls/certs/ca-bundle.crt
-cp -a /usr/lib64/libstdc++.so.6 /usr/lib64/libstdc++.so.6.* /staging/usr/lib64/
+cxx_ceiling=3.4.29
+if [ "$TARGETARCH" = arm64 ]; then
+  cp -a /tmp/libstd/libstdc++.so.6 /tmp/libstd/libstdc++.so.6.0.30 /staging/usr/lib64/
+  syms=$(objdump -T /staging/usr/lib64/libstdc++.so.6)
+  case "$syms" in
+    *GLIBCXX_3.4.30*) ;;
+    *) echo "staged libstdc++ does not provide GLIBCXX_3.4.30" >&2; exit 1 ;;
+  esac
+  cp -a /tmp/libstd-licenses/libstdc++-copyright /staging/licenses/libstdc++-copyright
+  cxx_ceiling=3.4.30
+else
+  cp -a /usr/lib64/libstdc++.so.6 /usr/lib64/libstdc++.so.6.* /staging/usr/lib64/
+fi
 cp -a /usr/lib64/libz.so.1 /usr/lib64/libz.so.1.* /staging/usr/lib64/
 if [ -f /usr/share/licenses/zlib/LICENSE ]; then
   cp -a /usr/share/licenses/zlib/LICENSE /staging/licenses/zlib-LICENSE
@@ -447,12 +494,12 @@ check_abi() {
   for sym in $syms; do
     case "$sym" in
       GLIBC_*) ver="${sym#GLIBC_}"; ceiling=2.34 ;;
-      GLIBCXX_*) ver="${sym#GLIBCXX_}"; ceiling=3.4.29 ;;
+      GLIBCXX_*) ver="${sym#GLIBCXX_}"; ceiling="$cxx_ceiling" ;;
       *) continue ;;
     esac
     first="$(printf '%s\n%s\n' "$ceiling" "$ver" | sort -V | head -n 1)"
     if [ "$first" = "$ceiling" ] && [ "$ver" != "$ceiling" ]; then
-      echo "$bin: needs a symbol newer than glibc 2.34 or GLIBCXX_3.4.29: $sym" >&2
+      echo "$bin: needs a symbol newer than glibc 2.34 or GLIBCXX_${ceiling}: $sym" >&2
       return 1
     fi
   done

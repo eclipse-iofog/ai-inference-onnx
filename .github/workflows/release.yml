@@ -293,37 +293,10 @@ jobs:
           esac
           printf '%s\n' "$DIGEST" > digest.txt
 
-      - name: Write the engine SBOM
-        env:
-          DIGEST: ${{ steps.push.outputs.digest }}
-          VARIANT: ${{ matrix.variant }}
-          ARCH: ${{ matrix.arch }}
-          PLATFORM: ${{ matrix.platform }}
-        run: |
-          set -euo pipefail
-          chmod +x scripts/export-image-root.sh
-          stage="$(mktemp -d)"
-          trap 'rm -rf "$stage"' EXIT
-          ./scripts/export-image-root.sh "${IMAGE}@${DIGEST}" "${PLATFORM}" "$stage"
-          mkdir -p dist
-          (cd licensegen && go run . -root .. -release \
-            -subject engine \
-            -variant "${VARIANT}" \
-            -arch "${ARCH}" \
-            -version "${OCI_VERSION}" \
-            -stage "$stage" \
-            -out ../dist)
-
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: engine-digest-${{ matrix.variant }}-${{ matrix.arch }}
           path: digest.txt
-          if-no-files-found: error
-
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: engine-sbom-${{ matrix.variant }}-${{ matrix.arch }}
-          path: dist/*
           if-no-files-found: error
 
   publish:
@@ -333,7 +306,6 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       actions: read
-      contents: write
       packages: write
       id-token: write
       attestations: write
@@ -449,35 +421,3 @@ jobs:
             cosign sign --yes "${IMAGE}@${index}"
             printf '%s@%s\n' "$tag" "$index" | tee -a "$GITHUB_STEP_SUMMARY"
           done < <(printf '%s\n' "${!digests[@]}" | sort)
-
-      - name: Attach the engine SBOM files
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          rm -rf sbom-artifacts
-          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --pattern 'engine-sbom-*' --dir sbom-artifacts
-          files=()
-          while IFS= read -r f; do
-            files+=("$f")
-          done < <(find sbom-artifacts -type f \( -name '*.cdx.json' -o -name '*.spdx.json' \) | sort)
-          if [ "${#files[@]}" -eq 0 ]; then
-            echo "engine SBOM files are missing" >&2
-            exit 1
-          fi
-          upload=()
-          for f in "${files[@]}"; do
-            cosign sign-blob --yes --bundle "${f}.sigstore" "$f"
-            test -f "${f}.sigstore"
-            upload+=("$f" "${f}.sigstore")
-          done
-          tag="${GITHUB_REF_NAME}"
-          for _ in $(seq 1 60); do
-            if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-              gh release upload "$tag" --repo "$GITHUB_REPOSITORY" --clobber "${upload[@]}"
-              exit 0
-            fi
-            sleep 30
-          done
-          echo "GitHub release ${tag} was not published" >&2
-          exit 1

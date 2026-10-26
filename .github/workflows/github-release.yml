@@ -176,7 +176,7 @@ jobs:
           {
             printf '```\n'
             printf '\nEach CPU archive has `onnxruntime-1.31.0-cpu-linux-<arch>.cdx.json` and `.spdx.json` beside it.\n'
-            printf 'Each engine image has `inference-<version>-ort1.31.0-<variant>-<arch>.cdx.json` and `.spdx.json`, added after the image is published.\n'
+            printf 'The engine image SBOM is the registry attestation on the pushed image.\n'
             printf '\nEach attached file has a `.sigstore` bundle.\n\n'
             printf '```bash\n'
             printf 'cosign verify-blob --bundle onnxruntime-1.31.0-linux-amd64.tar.gz.sigstore onnxruntime-1.31.0-linux-amd64.tar.gz\n'

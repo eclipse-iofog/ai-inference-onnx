@@ -4,7 +4,7 @@
 
 FROM scratch AS onnxruntime
 
-FROM registry.access.redhat.com/ubi9/ubi:9.8@sha256:16e9e43d99e181463513cc84a514859b1abb9460f1c4d9e208da4b4e51cd5cc3 AS engine-ubi
+FROM registry.access.redhat.com/ubi9/ubi:9.8@sha256:217dd5692d369799d34d09ffb6f5f3404efebc7900834490fdf9ae92fd6721d4 AS engine-ubi
 
 ARG TARGETARCH
 RUN if [ "$TARGETARCH" != amd64 ]; then echo "OpenVINO is built for amd64" >&2; exit 1; fi
@@ -40,7 +40,7 @@ RUN set -eu; \
       exit 1; \
     fi
 
-FROM registry.access.redhat.com/ubi9/ubi:9.8@sha256:16e9e43d99e181463513cc84a514859b1abb9460f1c4d9e208da4b4e51cd5cc3 AS openvino-libs
+FROM registry.access.redhat.com/ubi9/ubi:9.8@sha256:217dd5692d369799d34d09ffb6f5f3404efebc7900834490fdf9ae92fd6721d4 AS openvino-libs
 
 ARG OPENVINO_VERSION=2026.2.1
 ARG OPENVINO_URL=https://storage.openvinotoolkit.org/repositories/openvino/packages/2026.2.1/linux/openvino_toolkit_rhel8_2026.2.1.21919.ede283a88e3_x86_64.tgz
@@ -76,12 +76,14 @@ do
   fi
 done
 shopt -s nullglob
+# These patterns name files in the extracted library directory. Quoted, they
+# expand there. Unquoted, nullglob expands them in / and drops the versioned libraries.
 for name in \
-  libopenvino.so libopenvino.so.* \
-  libopenvino_c.so libopenvino_c.so.* \
-  libopenvino_onnx_frontend.so libopenvino_onnx_frontend.so.* \
-  libopenvino_ir_frontend.so.* \
-  libopenvino_intel_cpu_plugin.so
+  'libopenvino.so' 'libopenvino.so.*' \
+  'libopenvino_c.so' 'libopenvino_c.so.*' \
+  'libopenvino_onnx_frontend.so' 'libopenvino_onnx_frontend.so.*' \
+  'libopenvino_ir_frontend.so.*' \
+  'libopenvino_intel_cpu_plugin.so'
 do
   for f in "$lib"/$name; do
     cp -a "$f" /out/lib/
@@ -115,14 +117,16 @@ fi
 rm -rf /tmp/openvino-src
 ENDSCRIPT
 
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8@sha256:c4c285d42941ebb2bd4da878479008e1e4536bb599aad1dbe568f89de9053661 AS user-staging-ubi
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8@sha256:2d4c4551af6831dcd26bbf86108c4385de5183ec8fe6b5868f6f9640fe47f4ed AS user-staging-ubi
 
 RUN microdnf install -y --setopt=install_weak_deps=0 \
         shadow-utils \
         ca-certificates \
         libstdc++ \
+        zlib \
     && microdnf clean all \
     && test -e /usr/lib64/libstdc++.so.6 \
+    && test -e /usr/lib64/libz.so.1 \
     && test -f /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem \
     && groupadd --gid 10001 inference \
     && useradd --uid 10001 --gid 10001 --home-dir /home/inference --no-create-home --shell /sbin/nologin inference
@@ -151,6 +155,10 @@ cp -a /etc/passwd /etc/group /staging/etc/
 cp -a /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem /staging/etc/pki/ca-trust/extracted/pem/
 ln -s /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem /staging/etc/pki/tls/certs/ca-bundle.crt
 cp -a /usr/lib64/libstdc++.so.6 /usr/lib64/libstdc++.so.6.* /staging/usr/lib64/
+cp -a /usr/lib64/libz.so.1 /usr/lib64/libz.so.1.* /staging/usr/lib64/
+if [ -f /usr/share/licenses/zlib/LICENSE ]; then
+  cp -a /usr/share/licenses/zlib/LICENSE /staging/licenses/zlib-LICENSE
+fi
 chmod 0755 /staging/usr/local/bin/inference
 for lib in /staging/usr/lib64/* /staging/opt/onnxruntime/lib/*; do
   if [ -f "$lib" ] && [ ! -L "$lib" ]; then

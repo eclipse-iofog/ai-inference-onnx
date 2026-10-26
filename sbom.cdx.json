@@ -418,84 +418,6 @@
       "version": "10.15.1.29"
     },
     {
-      "bom-ref": "pkg:golang/cel.dev/expr@v0.25.2",
-      "licenses": [
-        {
-          "expression": "Apache-2.0"
-        }
-      ],
-      "name": "cel.dev/expr",
-      "purl": "pkg:golang/cel.dev/expr@v0.25.2",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v0.25.2"
-    },
-    {
-      "bom-ref": "pkg:golang/cloud.google.com/go/auth@v0.20.0",
-      "licenses": [
-        {
-          "expression": "Apache-2.0"
-        }
-      ],
-      "name": "cloud.google.com/go/auth",
-      "purl": "pkg:golang/cloud.google.com/go/auth@v0.20.0",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v0.20.0"
-    },
-    {
-      "bom-ref": "pkg:golang/cloud.google.com/go/compute/metadata@v0.9.0",
-      "licenses": [
-        {
-          "expression": "Apache-2.0"
-        }
-      ],
-      "name": "cloud.google.com/go/compute/metadata",
-      "purl": "pkg:golang/cloud.google.com/go/compute/metadata@v0.9.0",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v0.9.0"
-    },
-    {
-      "bom-ref": "pkg:golang/github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp@v1.34.0",
-      "licenses": [
-        {
-          "expression": "Apache-2.0"
-        }
-      ],
-      "name": "github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp",
-      "purl": "pkg:golang/github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp@v1.34.0",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v1.34.0"
-    },
-    {
-      "bom-ref": "pkg:golang/github.com/alecthomas/kingpin/v2@v2.4.0",
-      "licenses": [
-        {
-          "expression": "MIT"
-        }
-      ],
-      "name": "github.com/alecthomas/kingpin/v2",
-      "purl": "pkg:golang/github.com/alecthomas/kingpin/v2@v2.4.0",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v2.4.0"
-    },
-    {
-      "bom-ref": "pkg:golang/github.com/alecthomas/units@v0.0.0-20240927000941-0f3dac36c52b",
-      "licenses": [
-        {
-          "expression": "MIT"
-        }
-      ],
-      "name": "github.com/alecthomas/units",
-      "purl": "pkg:golang/github.com/alecthomas/units@v0.0.0-20240927000941-0f3dac36c52b",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v0.0.0-20240927000941-0f3dac36c52b"
-    },
-    {
       "bom-ref": "pkg:golang/github.com/antithesishq/antithesis-sdk-go@v0.8.0-default-no-op",
       "licenses": [
         {
@@ -553,84 +475,6 @@
       "version": "v2.3.0"
     },
     {
-      "bom-ref": "pkg:golang/github.com/cncf/xds/go@v0.0.0-20260202195803-dba9d589def2",
-      "licenses": [
-        {
-          "expression": "Apache-2.0"
-        }
-      ],
-      "name": "github.com/cncf/xds/go",
-      "purl": "pkg:golang/github.com/cncf/xds/go@v0.0.0-20260202195803-dba9d589def2",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v0.0.0-20260202195803-dba9d589def2"
-    },
-    {
-      "bom-ref": "pkg:golang/github.com/envoyproxy/go-control-plane/envoy@v1.37.0",
-      "licenses": [
-        {
-          "expression": "Apache-2.0"
-        }
-      ],
-      "name": "github.com/envoyproxy/go-control-plane/envoy",
-      "purl": "pkg:golang/github.com/envoyproxy/go-control-plane/envoy@v1.37.0",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v1.37.0"
-    },
-    {
-      "bom-ref": "pkg:golang/github.com/envoyproxy/go-control-plane/ratelimit@v0.1.0",
-      "licenses": [
-        {
-          "expression": "Apache-2.0"
-        }
-      ],
-      "name": "github.com/envoyproxy/go-control-plane/ratelimit",
-      "purl": "pkg:golang/github.com/envoyproxy/go-control-plane/ratelimit@v0.1.0",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v0.1.0"
-    },
-    {
-      "bom-ref": "pkg:golang/github.com/envoyproxy/go-control-plane@v0.14.0",
-      "licenses": [
-        {
-          "expression": "Apache-2.0"
-        }
-      ],
-      "name": "github.com/envoyproxy/go-control-plane",
-      "purl": "pkg:golang/github.com/envoyproxy/go-control-plane@v0.14.0",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v0.14.0"
-    },
-    {
-      "bom-ref": "pkg:golang/github.com/envoyproxy/protoc-gen-validate@v1.3.3",
-      "licenses": [
-        {
-          "expression": "Apache-2.0"
-        }
-      ],
-      "name": "github.com/envoyproxy/protoc-gen-validate",
-      "purl": "pkg:golang/github.com/envoyproxy/protoc-gen-validate@v1.3.3",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v1.3.3"
-    },
-    {
-      "bom-ref": "pkg:golang/github.com/felixge/httpsnoop@v1.1.0",
-      "licenses": [
-        {
-          "expression": "MIT"
-        }
-      ],
-      "name": "github.com/felixge/httpsnoop",
-      "purl": "pkg:golang/github.com/felixge/httpsnoop@v1.1.0",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v1.1.0"
-    },
-    {
       "bom-ref": "pkg:golang/github.com/fsnotify/fsnotify@v1.10.1",
       "licenses": [
         {
@@ -648,58 +492,6 @@
       "scope": "required",
       "type": "library",
       "version": "v1.10.1"
-    },
-    {
-      "bom-ref": "pkg:golang/github.com/go-jose/go-jose/v4@v4.1.4",
-      "licenses": [
-        {
-          "expression": "Apache-2.0"
-        }
-      ],
-      "name": "github.com/go-jose/go-jose/v4",
-      "purl": "pkg:golang/github.com/go-jose/go-jose/v4@v4.1.4",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v4.1.4"
-    },
-    {
-      "bom-ref": "pkg:golang/github.com/go-logr/logr@v1.4.3",
-      "licenses": [
-        {
-          "expression": "Apache-2.0"
-        }
-      ],
-      "name": "github.com/go-logr/logr",
-      "purl": "pkg:golang/github.com/go-logr/logr@v1.4.3",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v1.4.3"
-    },
-    {
-      "bom-ref": "pkg:golang/github.com/go-logr/stdr@v1.2.2",
-      "licenses": [
-        {
-          "expression": "Apache-2.0"
-        }
-      ],
-      "name": "github.com/go-logr/stdr",
-      "purl": "pkg:golang/github.com/go-logr/stdr@v1.2.2",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v1.2.2"
-    },
-    {
-      "bom-ref": "pkg:golang/github.com/go-quicktest/qt@v1.101.0",
-      "licenses": [
-        {
-          "expression": "MIT"
-        }
-      ],
-      "name": "github.com/go-quicktest/qt",
-      "purl": "pkg:golang/github.com/go-quicktest/qt@v1.101.0",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v1.101.0"
     },
     {
       "bom-ref": "pkg:golang/github.com/golang-jwt/jwt/v5@v5.3.1",
@@ -721,175 +513,6 @@
       "version": "v5.3.1"
     },
     {
-      "bom-ref": "pkg:golang/github.com/golang/glog@v1.2.5",
-      "licenses": [
-        {
-          "expression": "Apache-2.0"
-        }
-      ],
-      "name": "github.com/golang/glog",
-      "purl": "pkg:golang/github.com/golang/glog@v1.2.5",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v1.2.5"
-    },
-    {
-      "bom-ref": "pkg:golang/github.com/golang/protobuf@v1.5.4",
-      "licenses": [
-        {
-          "expression": "BSD-3-Clause"
-        }
-      ],
-      "name": "github.com/golang/protobuf",
-      "purl": "pkg:golang/github.com/golang/protobuf@v1.5.4",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v1.5.4"
-    },
-    {
-      "bom-ref": "pkg:golang/github.com/google/go-cmp@v0.6.0",
-      "licenses": [
-        {
-          "expression": "BSD-3-Clause"
-        }
-      ],
-      "name": "github.com/google/go-cmp",
-      "purl": "pkg:golang/github.com/google/go-cmp@v0.6.0",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v0.6.0"
-    },
-    {
-      "bom-ref": "pkg:golang/github.com/google/go-cmp@v0.7.0",
-      "licenses": [
-        {
-          "expression": "BSD-3-Clause"
-        }
-      ],
-      "name": "github.com/google/go-cmp",
-      "purl": "pkg:golang/github.com/google/go-cmp@v0.7.0",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v0.7.0"
-    },
-    {
-      "bom-ref": "pkg:golang/github.com/google/go-tpm-tools@v0.3.13-0.20230620182252-4639ecce2aba",
-      "licenses": [
-        {
-          "expression": "Apache-2.0 OR BSD-3-Clause"
-        }
-      ],
-      "name": "github.com/google/go-tpm-tools",
-      "purl": "pkg:golang/github.com/google/go-tpm-tools@v0.3.13-0.20230620182252-4639ecce2aba",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v0.3.13-0.20230620182252-4639ecce2aba"
-    },
-    {
-      "bom-ref": "pkg:golang/github.com/google/go-tpm@v0.9.8",
-      "licenses": [
-        {
-          "expression": "Apache-2.0"
-        }
-      ],
-      "name": "github.com/google/go-tpm",
-      "purl": "pkg:golang/github.com/google/go-tpm@v0.9.8",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v0.9.8"
-    },
-    {
-      "bom-ref": "pkg:golang/github.com/google/s2a-go@v0.1.9",
-      "licenses": [
-        {
-          "expression": "Apache-2.0"
-        }
-      ],
-      "name": "github.com/google/s2a-go",
-      "purl": "pkg:golang/github.com/google/s2a-go@v0.1.9",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v0.1.9"
-    },
-    {
-      "bom-ref": "pkg:golang/github.com/google/uuid@v1.6.0",
-      "licenses": [
-        {
-          "expression": "BSD-3-Clause"
-        }
-      ],
-      "name": "github.com/google/uuid",
-      "purl": "pkg:golang/github.com/google/uuid@v1.6.0",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v1.6.0"
-    },
-    {
-      "bom-ref": "pkg:golang/github.com/googleapis/enterprise-certificate-proxy@v0.3.15",
-      "licenses": [
-        {
-          "expression": "Apache-2.0"
-        }
-      ],
-      "name": "github.com/googleapis/enterprise-certificate-proxy",
-      "purl": "pkg:golang/github.com/googleapis/enterprise-certificate-proxy@v0.3.15",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v0.3.15"
-    },
-    {
-      "bom-ref": "pkg:golang/github.com/googleapis/gax-go/v2@v2.22.0",
-      "licenses": [
-        {
-          "expression": "BSD-3-Clause"
-        }
-      ],
-      "name": "github.com/googleapis/gax-go/v2",
-      "purl": "pkg:golang/github.com/googleapis/gax-go/v2@v2.22.0",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v2.22.0"
-    },
-    {
-      "bom-ref": "pkg:golang/github.com/jpillora/backoff@v1.0.0",
-      "licenses": [
-        {
-          "expression": "MIT"
-        }
-      ],
-      "name": "github.com/jpillora/backoff",
-      "purl": "pkg:golang/github.com/jpillora/backoff@v1.0.0",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v1.0.0"
-    },
-    {
-      "bom-ref": "pkg:golang/github.com/json-iterator/go@v1.1.12",
-      "licenses": [
-        {
-          "expression": "MIT"
-        }
-      ],
-      "name": "github.com/json-iterator/go",
-      "purl": "pkg:golang/github.com/json-iterator/go@v1.1.12",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v1.1.12"
-    },
-    {
-      "bom-ref": "pkg:golang/github.com/julienschmidt/httprouter@v1.3.0",
-      "licenses": [
-        {
-          "expression": "BSD-3-Clause"
-        }
-      ],
-      "name": "github.com/julienschmidt/httprouter",
-      "purl": "pkg:golang/github.com/julienschmidt/httprouter@v1.3.0",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v1.3.0"
-    },
-    {
       "bom-ref": "pkg:golang/github.com/klauspost/compress@v1.20.1",
       "licenses": [
         {
@@ -907,45 +530,6 @@
       "scope": "required",
       "type": "library",
       "version": "v1.20.1"
-    },
-    {
-      "bom-ref": "pkg:golang/github.com/kr/pretty@v0.3.1",
-      "licenses": [
-        {
-          "expression": "MIT"
-        }
-      ],
-      "name": "github.com/kr/pretty",
-      "purl": "pkg:golang/github.com/kr/pretty@v0.3.1",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v0.3.1"
-    },
-    {
-      "bom-ref": "pkg:golang/github.com/kr/text@v0.2.0",
-      "licenses": [
-        {
-          "expression": "MIT"
-        }
-      ],
-      "name": "github.com/kr/text",
-      "purl": "pkg:golang/github.com/kr/text@v0.2.0",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v0.2.0"
-    },
-    {
-      "bom-ref": "pkg:golang/github.com/kylelemons/godebug@v1.1.0",
-      "licenses": [
-        {
-          "expression": "Apache-2.0"
-        }
-      ],
-      "name": "github.com/kylelemons/godebug",
-      "purl": "pkg:golang/github.com/kylelemons/godebug@v1.1.0",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v1.1.0"
     },
     {
       "bom-ref": "pkg:golang/github.com/microsoft/onnxruntime/go@v0.0.0-20261013071300-9036f076a2ce",
@@ -987,32 +571,6 @@
       "version": "v1.0.4"
     },
     {
-      "bom-ref": "pkg:golang/github.com/modern-go/concurrent@v0.0.0-20180306012644-bacd9c7ef1dd",
-      "licenses": [
-        {
-          "expression": "Apache-2.0"
-        }
-      ],
-      "name": "github.com/modern-go/concurrent",
-      "purl": "pkg:golang/github.com/modern-go/concurrent@v0.0.0-20180306012644-bacd9c7ef1dd",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v0.0.0-20180306012644-bacd9c7ef1dd"
-    },
-    {
-      "bom-ref": "pkg:golang/github.com/modern-go/reflect2@v1.0.2",
-      "licenses": [
-        {
-          "expression": "Apache-2.0"
-        }
-      ],
-      "name": "github.com/modern-go/reflect2",
-      "purl": "pkg:golang/github.com/modern-go/reflect2@v1.0.2",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v1.0.2"
-    },
-    {
       "bom-ref": "pkg:golang/github.com/munnerz/goautoneg@v0.0.0-20191010083416-a7dc8b61c822",
       "licenses": [
         {
@@ -1030,19 +588,6 @@
       "scope": "required",
       "type": "library",
       "version": "v0.0.0-20191010083416-a7dc8b61c822"
-    },
-    {
-      "bom-ref": "pkg:golang/github.com/mwitkow/go-conntrack@v0.0.0-20190716064945-2f068394615f",
-      "licenses": [
-        {
-          "expression": "Apache-2.0"
-        }
-      ],
-      "name": "github.com/mwitkow/go-conntrack",
-      "purl": "pkg:golang/github.com/mwitkow/go-conntrack@v0.0.0-20190716064945-2f068394615f",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v0.0.0-20190716064945-2f068394615f"
     },
     {
       "bom-ref": "pkg:golang/github.com/nats-io/jwt/v2@v2.8.2",
@@ -1140,19 +685,6 @@
       "version": "v1.0.1"
     },
     {
-      "bom-ref": "pkg:golang/github.com/planetscale/vtprotobuf@v0.6.1-0.20240319094008-0393e58bdf10",
-      "licenses": [
-        {
-          "expression": "BSD-3-Clause"
-        }
-      ],
-      "name": "github.com/planetscale/vtprotobuf",
-      "purl": "pkg:golang/github.com/planetscale/vtprotobuf@v0.6.1-0.20240319094008-0393e58bdf10",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v0.6.1-0.20240319094008-0393e58bdf10"
-    },
-    {
       "bom-ref": "pkg:golang/github.com/prometheus/client_golang@v1.25.0",
       "licenses": [
         {
@@ -1229,201 +761,6 @@
       "version": "v0.22.0"
     },
     {
-      "bom-ref": "pkg:golang/github.com/rogpeppe/go-internal@v1.11.0",
-      "licenses": [
-        {
-          "expression": "BSD-3-Clause"
-        }
-      ],
-      "name": "github.com/rogpeppe/go-internal",
-      "purl": "pkg:golang/github.com/rogpeppe/go-internal@v1.11.0",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v1.11.0"
-    },
-    {
-      "bom-ref": "pkg:golang/github.com/spiffe/go-spiffe/v2@v2.8.1",
-      "licenses": [
-        {
-          "expression": "Apache-2.0"
-        }
-      ],
-      "name": "github.com/spiffe/go-spiffe/v2",
-      "purl": "pkg:golang/github.com/spiffe/go-spiffe/v2@v2.8.1",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v2.8.1"
-    },
-    {
-      "bom-ref": "pkg:golang/github.com/stretchr/testify@v1.12.1",
-      "licenses": [
-        {
-          "expression": "MIT"
-        }
-      ],
-      "name": "github.com/stretchr/testify",
-      "purl": "pkg:golang/github.com/stretchr/testify@v1.12.1",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v1.12.1"
-    },
-    {
-      "bom-ref": "pkg:golang/github.com/xhit/go-str2duration/v2@v2.1.0",
-      "licenses": [
-        {
-          "expression": "BSD-3-Clause"
-        }
-      ],
-      "name": "github.com/xhit/go-str2duration/v2",
-      "purl": "pkg:golang/github.com/xhit/go-str2duration/v2@v2.1.0",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v2.1.0"
-    },
-    {
-      "bom-ref": "pkg:golang/go.opentelemetry.io/auto/sdk@v1.2.1",
-      "licenses": [
-        {
-          "expression": "Apache-2.0"
-        }
-      ],
-      "name": "go.opentelemetry.io/auto/sdk",
-      "purl": "pkg:golang/go.opentelemetry.io/auto/sdk@v1.2.1",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v1.2.1"
-    },
-    {
-      "bom-ref": "pkg:golang/go.opentelemetry.io/contrib/detectors/gcp@v1.44.0",
-      "licenses": [
-        {
-          "expression": "Apache-2.0 OR BSD-3-Clause"
-        }
-      ],
-      "name": "go.opentelemetry.io/contrib/detectors/gcp",
-      "purl": "pkg:golang/go.opentelemetry.io/contrib/detectors/gcp@v1.44.0",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v1.44.0"
-    },
-    {
-      "bom-ref": "pkg:golang/go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp@v0.69.0",
-      "licenses": [
-        {
-          "expression": "Apache-2.0 OR BSD-3-Clause"
-        }
-      ],
-      "name": "go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp",
-      "purl": "pkg:golang/go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp@v0.69.0",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v0.69.0"
-    },
-    {
-      "bom-ref": "pkg:golang/go.opentelemetry.io/otel/metric@v1.44.0",
-      "licenses": [
-        {
-          "expression": "Apache-2.0 OR BSD-3-Clause"
-        }
-      ],
-      "name": "go.opentelemetry.io/otel/metric",
-      "purl": "pkg:golang/go.opentelemetry.io/otel/metric@v1.44.0",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v1.44.0"
-    },
-    {
-      "bom-ref": "pkg:golang/go.opentelemetry.io/otel/sdk/metric@v1.44.0",
-      "licenses": [
-        {
-          "expression": "Apache-2.0 OR BSD-3-Clause"
-        }
-      ],
-      "name": "go.opentelemetry.io/otel/sdk/metric",
-      "purl": "pkg:golang/go.opentelemetry.io/otel/sdk/metric@v1.44.0",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v1.44.0"
-    },
-    {
-      "bom-ref": "pkg:golang/go.opentelemetry.io/otel/sdk@v1.44.0",
-      "licenses": [
-        {
-          "expression": "Apache-2.0 OR BSD-3-Clause"
-        }
-      ],
-      "name": "go.opentelemetry.io/otel/sdk",
-      "purl": "pkg:golang/go.opentelemetry.io/otel/sdk@v1.44.0",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v1.44.0"
-    },
-    {
-      "bom-ref": "pkg:golang/go.opentelemetry.io/otel/trace@v1.44.0",
-      "licenses": [
-        {
-          "expression": "Apache-2.0 OR BSD-3-Clause"
-        }
-      ],
-      "name": "go.opentelemetry.io/otel/trace",
-      "purl": "pkg:golang/go.opentelemetry.io/otel/trace@v1.44.0",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v1.44.0"
-    },
-    {
-      "bom-ref": "pkg:golang/go.opentelemetry.io/otel@v1.44.0",
-      "licenses": [
-        {
-          "expression": "Apache-2.0 OR BSD-3-Clause"
-        }
-      ],
-      "name": "go.opentelemetry.io/otel",
-      "purl": "pkg:golang/go.opentelemetry.io/otel@v1.44.0",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v1.44.0"
-    },
-    {
-      "bom-ref": "pkg:golang/go.uber.org/goleak@v1.3.0",
-      "licenses": [
-        {
-          "expression": "MIT"
-        }
-      ],
-      "name": "go.uber.org/goleak",
-      "purl": "pkg:golang/go.uber.org/goleak@v1.3.0",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v1.3.0"
-    },
-    {
-      "bom-ref": "pkg:golang/go.yaml.in/yaml/v2@v2.4.4",
-      "licenses": [
-        {
-          "expression": "Apache-2.0"
-        }
-      ],
-      "name": "go.yaml.in/yaml/v2",
-      "purl": "pkg:golang/go.yaml.in/yaml/v2@v2.4.4",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v2.4.4"
-    },
-    {
-      "bom-ref": "pkg:golang/go.yaml.in/yaml/v3@v3.0.5",
-      "licenses": [
-        {
-          "expression": "Apache-2.0 OR MIT"
-        }
-      ],
-      "name": "go.yaml.in/yaml/v3",
-      "purl": "pkg:golang/go.yaml.in/yaml/v3@v3.0.5",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v3.0.5"
-    },
-    {
       "bom-ref": "pkg:golang/golang.org/x/crypto@v0.57.0",
       "licenses": [
         {
@@ -1441,45 +778,6 @@
       "scope": "required",
       "type": "library",
       "version": "v0.57.0"
-    },
-    {
-      "bom-ref": "pkg:golang/golang.org/x/mod@v0.33.0",
-      "licenses": [
-        {
-          "expression": "BSD-3-Clause"
-        }
-      ],
-      "name": "golang.org/x/mod",
-      "purl": "pkg:golang/golang.org/x/mod@v0.33.0",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v0.33.0"
-    },
-    {
-      "bom-ref": "pkg:golang/golang.org/x/mod@v0.41.0",
-      "licenses": [
-        {
-          "expression": "BSD-3-Clause"
-        }
-      ],
-      "name": "golang.org/x/mod",
-      "purl": "pkg:golang/golang.org/x/mod@v0.41.0",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v0.41.0"
-    },
-    {
-      "bom-ref": "pkg:golang/golang.org/x/net@v0.58.0",
-      "licenses": [
-        {
-          "expression": "BSD-3-Clause"
-        }
-      ],
-      "name": "golang.org/x/net",
-      "purl": "pkg:golang/golang.org/x/net@v0.58.0",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v0.58.0"
     },
     {
       "bom-ref": "pkg:golang/golang.org/x/net@v0.60.0",
@@ -1501,45 +799,6 @@
       "version": "v0.60.0"
     },
     {
-      "bom-ref": "pkg:golang/golang.org/x/oauth2@v0.37.0",
-      "licenses": [
-        {
-          "expression": "BSD-3-Clause"
-        }
-      ],
-      "name": "golang.org/x/oauth2",
-      "purl": "pkg:golang/golang.org/x/oauth2@v0.37.0",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v0.37.0"
-    },
-    {
-      "bom-ref": "pkg:golang/golang.org/x/sync@v0.19.0",
-      "licenses": [
-        {
-          "expression": "BSD-3-Clause"
-        }
-      ],
-      "name": "golang.org/x/sync",
-      "purl": "pkg:golang/golang.org/x/sync@v0.19.0",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v0.19.0"
-    },
-    {
-      "bom-ref": "pkg:golang/golang.org/x/sync@v0.23.0",
-      "licenses": [
-        {
-          "expression": "BSD-3-Clause"
-        }
-      ],
-      "name": "golang.org/x/sync",
-      "purl": "pkg:golang/golang.org/x/sync@v0.23.0",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v0.23.0"
-    },
-    {
       "bom-ref": "pkg:golang/golang.org/x/sys@v0.48.0",
       "licenses": [
         {
@@ -1557,19 +816,6 @@
       "scope": "required",
       "type": "library",
       "version": "v0.48.0"
-    },
-    {
-      "bom-ref": "pkg:golang/golang.org/x/term@v0.46.0",
-      "licenses": [
-        {
-          "expression": "BSD-3-Clause"
-        }
-      ],
-      "name": "golang.org/x/term",
-      "purl": "pkg:golang/golang.org/x/term@v0.46.0",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v0.46.0"
     },
     {
       "bom-ref": "pkg:golang/golang.org/x/text@v0.42.0",
@@ -1608,71 +854,6 @@
       "scope": "optional",
       "type": "library",
       "version": "v0.16.0"
-    },
-    {
-      "bom-ref": "pkg:golang/golang.org/x/tools@v0.42.0",
-      "licenses": [
-        {
-          "expression": "BSD-3-Clause"
-        }
-      ],
-      "name": "golang.org/x/tools",
-      "purl": "pkg:golang/golang.org/x/tools@v0.42.0",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v0.42.0"
-    },
-    {
-      "bom-ref": "pkg:golang/golang.org/x/tools@v0.49.0",
-      "licenses": [
-        {
-          "expression": "BSD-3-Clause"
-        }
-      ],
-      "name": "golang.org/x/tools",
-      "purl": "pkg:golang/golang.org/x/tools@v0.49.0",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v0.49.0"
-    },
-    {
-      "bom-ref": "pkg:golang/gonum.org/v1/gonum@v0.17.0",
-      "licenses": [
-        {
-          "expression": "BSD-3-Clause"
-        }
-      ],
-      "name": "gonum.org/v1/gonum",
-      "purl": "pkg:golang/gonum.org/v1/gonum@v0.17.0",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v0.17.0"
-    },
-    {
-      "bom-ref": "pkg:golang/google.golang.org/api@v0.278.0",
-      "licenses": [
-        {
-          "expression": "BSD-3-Clause"
-        }
-      ],
-      "name": "google.golang.org/api",
-      "purl": "pkg:golang/google.golang.org/api@v0.278.0",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v0.278.0"
-    },
-    {
-      "bom-ref": "pkg:golang/google.golang.org/genproto/googleapis/api@v0.0.0-20260706201446-f0a921348800",
-      "licenses": [
-        {
-          "expression": "Apache-2.0"
-        }
-      ],
-      "name": "google.golang.org/genproto/googleapis/api",
-      "purl": "pkg:golang/google.golang.org/genproto/googleapis/api@v0.0.0-20260706201446-f0a921348800",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v0.0.0-20260706201446-f0a921348800"
     },
     {
       "bom-ref": "pkg:golang/google.golang.org/genproto/googleapis/rpc@v0.0.0-20260706201446-f0a921348800",
@@ -1730,19 +911,6 @@
       "scope": "required",
       "type": "library",
       "version": "v1.36.12"
-    },
-    {
-      "bom-ref": "pkg:golang/gopkg.in/check.v1@v0.0.0-20161208181325-20d25e280405",
-      "licenses": [
-        {
-          "expression": "BSD-2-Clause"
-        }
-      ],
-      "name": "gopkg.in/check.v1",
-      "purl": "pkg:golang/gopkg.in/check.v1@v0.0.0-20161208181325-20d25e280405",
-      "scope": "excluded",
-      "type": "library",
-      "version": "v0.0.0-20161208181325-20d25e280405"
     },
     {
       "bom-ref": "pkg:golang/gopkg.in/yaml.v3@v3.0.1",
@@ -1834,7 +1002,7 @@
       ]
     }
   },
-  "serialNumber": "urn:uuid:7f60c4ea-f230-5dd1-9880-378a06d8a066",
+  "serialNumber": "urn:uuid:71e76112-6d5b-5a8e-a236-5593308ae20f",
   "specVersion": "1.6",
   "version": 1
 }

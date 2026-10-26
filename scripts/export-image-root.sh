@@ -30,9 +30,13 @@ platform_manifest() {
 		echo "python3 is not installed" >&2
 		exit 1
 	fi
-	raw="$(docker buildx imagetools inspect --raw "$image")"
+	# The index is the program's standard input. The program itself is an
+	# argument, so the two do not share one stream. A failure here must
+	# return: this function runs inside a command substitution, which does
+	# not keep the shell's exit-on-error behavior.
+	raw="$(docker buildx imagetools inspect --raw "$image")" || return 1
 	selected="$(
-		printf '%s' "$raw" | python3 - "$image" "$platform" <<'PY'
+		printf '%s' "$raw" | python3 -c '
 import json
 import sys
 
@@ -58,10 +62,14 @@ for item in manifests:
         selected = digest
         break
 if not selected:
-    sys.exit(f"image has no {platform} manifest")
+    sys.exit("image has no %s manifest" % platform)
 sys.stdout.write(image.split("@", 1)[0] + "@" + selected)
-PY
-	)"
+' "$image" "$platform"
+	)" || return 1
+	if [ -z "$selected" ]; then
+		echo "platform manifest is empty" >&2
+		return 1
+	fi
 	printf '%s\n' "$selected"
 }
 
@@ -71,11 +79,16 @@ cleanup() {
 	rm -rf "$tmp"
 }
 trap cleanup EXIT
-image="$(platform_manifest "$image" "$platform")"
+image="$(platform_manifest "$image" "$platform")" || exit 1
 printf 'FROM %s\n' "$image" >"${tmp}/Dockerfile"
+# UBI keeps /root mode 0700, and that directory contains buildinfo. A local
+# unpack running as the runner cannot create that directory. A tar export is
+# one file; extracting it as the current user can.
+archive="${tmp}/image.tar"
 docker buildx build \
 	--platform "$platform" \
-	--output "type=local,dest=${dest}" \
+	--output "type=tar,dest=${archive}" \
 	--provenance=false \
 	--sbom=false \
 	"$tmp"
+tar --no-same-owner -C "$dest" -xf "$archive"

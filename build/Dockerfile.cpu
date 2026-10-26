@@ -5,7 +5,7 @@
 
 FROM scratch AS onnxruntime
 
-FROM registry.access.redhat.com/ubi9/ubi:9.8@sha256:16e9e43d99e181463513cc84a514859b1abb9460f1c4d9e208da4b4e51cd5cc3 AS engine-ubi
+FROM registry.access.redhat.com/ubi9/ubi:9.8@sha256:217dd5692d369799d34d09ffb6f5f3404efebc7900834490fdf9ae92fd6721d4 AS engine-ubi
 
 ARG TARGETARCH
 RUN dnf install -y --setopt=install_weak_deps=False \
@@ -80,7 +80,7 @@ RUN set -eu; \
       exit 1; \
     fi
 
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8@sha256:c4c285d42941ebb2bd4da878479008e1e4536bb599aad1dbe568f89de9053661 AS user-staging-ubi
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8@sha256:2d4c4551af6831dcd26bbf86108c4385de5183ec8fe6b5868f6f9640fe47f4ed AS user-staging-ubi
 
 RUN microdnf install -y --setopt=install_weak_deps=0 \
         shadow-utils \
@@ -170,8 +170,8 @@ RUN set -eu; \
 FROM engine-cross AS staging-cross
 
 ARG TARGETARCH
-COPY --from=gcr.io/distroless/cc-debian13:nonroot@sha256:e792ab3d241a468a4fd7519ddbbebe66b49b5f365771716ea688ad40b6c6f1c2 /etc/passwd /tmp/distroless/passwd
-COPY --from=gcr.io/distroless/cc-debian13:nonroot@sha256:e792ab3d241a468a4fd7519ddbbebe66b49b5f365771716ea688ad40b6c6f1c2 /etc/group /tmp/distroless/group
+COPY --from=gcr.io/distroless/cc-debian13:nonroot@sha256:3ee00291cf386ec52a552e6a858d555debd74776eb4bfa53fa3df2cd6677515e /etc/passwd /tmp/distroless/passwd
+COPY --from=gcr.io/distroless/cc-debian13:nonroot@sha256:3ee00291cf386ec52a552e6a858d555debd74776eb4bfa53fa3df2cd6677515e /etc/group /tmp/distroless/group
 COPY --from=onnxruntime /lib/ /staging/opt/onnxruntime/lib/
 COPY --from=onnxruntime /licenses/ /staging/licenses/
 
@@ -274,7 +274,7 @@ WORKDIR /home/inference
 EXPOSE 8000 8001 8002
 ENTRYPOINT ["/usr/local/bin/inference"]
 
-FROM gcr.io/distroless/cc-debian13:nonroot@sha256:e792ab3d241a468a4fd7519ddbbebe66b49b5f365771716ea688ad40b6c6f1c2 AS final-distroless
+FROM gcr.io/distroless/cc-debian13:nonroot@sha256:3ee00291cf386ec52a552e6a858d555debd74776eb4bfa53fa3df2cd6677515e AS final-distroless
 
 COPY --from=staging-cross /staging/ /
 

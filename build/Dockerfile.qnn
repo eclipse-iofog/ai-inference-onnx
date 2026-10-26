@@ -4,7 +4,7 @@
 
 FROM scratch AS onnxruntime
 
-FROM registry.access.redhat.com/ubi9/ubi:9.8@sha256:16e9e43d99e181463513cc84a514859b1abb9460f1c4d9e208da4b4e51cd5cc3 AS engine-ubi
+FROM registry.access.redhat.com/ubi9/ubi:9.8@sha256:217dd5692d369799d34d09ffb6f5f3404efebc7900834490fdf9ae92fd6721d4 AS engine-ubi
 
 ARG TARGETARCH
 RUN if [ "$TARGETARCH" != arm64 ]; then echo "QNN is built for arm64" >&2; exit 1; fi
@@ -40,7 +40,7 @@ RUN set -eu; \
       exit 1; \
     fi
 
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8@sha256:c4c285d42941ebb2bd4da878479008e1e4536bb599aad1dbe568f89de9053661 AS user-staging-ubi
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8@sha256:2d4c4551af6831dcd26bbf86108c4385de5183ec8fe6b5868f6f9640fe47f4ed AS user-staging-ubi
 
 RUN microdnf install -y --setopt=install_weak_deps=0 \
         shadow-utils \

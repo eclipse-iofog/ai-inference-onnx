@@ -81,7 +81,7 @@ A CDI device spec that must add more than one group lists those ids under `addit
 
 `/licenses` in every image holds the license and the third-party notices.
 
-The repository root carries `SBOM.md`, `LICENSE-3RD-PARTY.md`, `sbom.cdx.json`, and `sbom.spdx.json` for the source tree. Regenerate them with `make sbom`. A release adds one CycloneDX file and one SPDX file for each engine image, named `inference-<version>-ort1.31.0-<variant>-<arch>`, and the same pair for each CPU runtime archive, named `onnxruntime-1.31.0-cpu-linux-<arch>`. Those files add the file hashes. Publishing a runtime image writes that pair next to the architecture digest. Image attestations are separate from these files.
+The repository root carries `SBOM.md`, `LICENSE-3RD-PARTY.md`, `sbom.cdx.json`, and `sbom.spdx.json` for the source tree. The JSON files list required and optional components that have a version. Excluded modules stay in `SBOM.md` and `LICENSE-3RD-PARTY.md`. Regenerate them with `make sbom`. The engine image SBOM is the registry attestation on the pushed image. A release adds one CycloneDX file and one SPDX file for each CPU runtime archive, named `onnxruntime-1.31.0-cpu-linux-<arch>`. Those files add the file hashes. Publishing a runtime image writes that pair next to the architecture digest.
 
 Accelerator runtimes are not bare archives. They ship inside the image. The CPU runtime is also published as three archives, one per architecture:
 

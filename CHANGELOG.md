@@ -9,10 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Software bill of materials. The repository root carries `SBOM.md`, `LICENSE-3RD-PARTY.md`, `sbom.cdx.json`, and `sbom.spdx.json` for the source tree. A release attaches a CycloneDX file and an SPDX file for each engine image and for each CPU runtime archive.
+- Software bill of materials. The repository root carries `SBOM.md`, `LICENSE-3RD-PARTY.md`, `sbom.cdx.json`, and `sbom.spdx.json` for the source tree. The engine image SBOM is the registry attestation on the pushed image. A release attaches a CycloneDX file and an SPDX file for each CPU runtime archive.
 
 ### Fixed
 
+- `sbom.cdx.json` and `sbom.spdx.json` list required and optional components that have a version. Excluded modules stay in `SBOM.md` and `LICENSE-3RD-PARTY.md`. Generating those documents no longer appends unused module checksums to `go.sum`.
 - UBI 9 builds no longer install the `curl` package. The base image already provides `curl-minimal`, and the two packages conflict. This covers the QNN, OpenVINO, and TensorRT engine and runtime images.
 - A TensorRT archive extracts its top-level headers and libraries. The CUDA-style `targets` paths are not in that archive.
 - The MIGraphX runtime image installs `migraphx` and `migraphx-devel` from the ROCm 7.1 image and compiles with GCC 13. The engine image installs the same packages when it stages the ROCm libraries.

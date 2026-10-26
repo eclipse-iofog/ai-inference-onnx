@@ -29,7 +29,15 @@ func main() {
 	if err != nil {
 		fail(err)
 	}
+	// go mod download records zip sums for every module in the build list,
+	// including modules the engine and the dashboard do not import. Those sums
+	// are not part of the SBOM output, and committing them makes the vulnerability
+	// scanner report the modules.
+	sums := snapshotSums(repo)
 	comps, subject, err := buildInventory(repo)
+	if rerr := restoreSums(repo, sums); rerr != nil && err == nil {
+		err = rerr
+	}
 	if err != nil {
 		fail(err)
 	}
@@ -57,11 +65,14 @@ func main() {
 }
 
 func rootDocuments(subject Component, comps []Component) (map[string][]byte, error) {
-	cdx, err := renderCDX(subject, comps)
+	// The vulnerability scanner matches every package URL in the JSON files and does not read CycloneDX scope.
+	// SBOM.md and the license notices keep the full inventory.
+	published := publishedComponents(comps)
+	cdx, err := renderCDX(subject, published)
 	if err != nil {
 		return nil, err
 	}
-	spdx, err := renderSPDX(subject, comps)
+	spdx, err := renderSPDX(subject, published)
 	if err != nil {
 		return nil, err
 	}
@@ -71,6 +82,42 @@ func rootDocuments(subject Component, comps []Component) (map[string][]byte, err
 		"sbom.cdx.json":        cdx,
 		"sbom.spdx.json":       spdx,
 	}, nil
+}
+
+// publishedComponents is the inventory written to sbom.cdx.json and sbom.spdx.json.
+// Excluded modules are not compiled into a shipped binary. A component with no
+// version of its own matches upstream advisories by package name.
+func publishedComponents(comps []Component) []Component {
+	out := make([]Component, 0, len(comps))
+	for _, c := range comps {
+		if c.Scope == scopeExcluded || c.Version == "" {
+			continue
+		}
+		out = append(out, c)
+	}
+	return out
+}
+
+func snapshotSums(repo string) map[string][]byte {
+	out := map[string][]byte{}
+	for _, rel := range []string{"go.sum", filepath.Join("dashboard", "go.sum")} {
+		body, err := os.ReadFile(filepath.Join(repo, rel))
+		if err != nil {
+			continue
+		}
+		out[rel] = body
+	}
+	return out
+}
+
+func restoreSums(repo string, before map[string][]byte) error {
+	var err error
+	for rel, body := range before {
+		if werr := os.WriteFile(filepath.Join(repo, rel), body, 0o644); werr != nil && err == nil {
+			err = werr
+		}
+	}
+	return err
 }
 
 func writeRelease(repo string, comps []Component, kind, variant, arch, version, stage, outDir string) error {

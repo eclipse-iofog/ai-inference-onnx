@@ -213,7 +213,7 @@ make runtime-index VARIANT=cpu
 
 The digest is then recorded in `build/onnxruntime/runtime-images.txt`. The ONNX Runtime workflow signs that recorded digest. It does not build the image. The engine release copies the signed runtime into the engine image. Accelerator runtimes ship inside the engine image. The CPU runtime is also published as three archives, one per architecture: `onnxruntime-1.31.0-linux-amd64.tar.gz`, `onnxruntime-1.31.0-linux-arm64.tar.gz`, and `onnxruntime-1.31.0-linux-riscv64.tar.gz`. A release verifies the CPU runtime image before it copies the files out.
 
-`SBOM.md` at the repository root is the source inventory. A release attaches a CycloneDX file and an SPDX file for each engine image and for each CPU runtime archive. `make sbom` regenerates the source documents.
+`SBOM.md` at the repository root is the source inventory. `sbom.cdx.json` and `sbom.spdx.json` list the versioned required and optional components from that inventory. The engine image SBOM is the registry attestation on the pushed image. A release attaches a CycloneDX file and an SPDX file for each CPU runtime archive. `make sbom` regenerates the source documents.
 
 Tag, device, and license detail: [Images](docs/reference/images.md).
 
