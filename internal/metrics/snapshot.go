@@ -43,6 +43,12 @@ type SnapshotMeta struct {
 	Ready bool
 	// NATSConnected is true only while the leaf is connected.
 	NATSConnected bool
+	// ExecutionProviders is the provider chain appended for every session, in that order.
+	// An empty list means the runtime library did not load.
+	ExecutionProviders []string
+	// ORTVersion is the loaded ONNX Runtime version.
+	// Empty means the runtime library did not load.
+	ORTVersion string
 }
 
 // Subject is the core subject for one engine snapshot.
@@ -91,16 +97,22 @@ func (r *Registry) Snapshot(meta SnapshotMeta) ([]byte, error) {
 		models = append(models, modelDocument(item, values))
 	}
 	sortModels(models)
+	providers := meta.ExecutionProviders
+	if providers == nil {
+		providers = []string{}
+	}
 	doc := snapshotDoc{
-		Schema:           schemaVersion,
-		ServerID:         meta.ServerID,
-		Live:             meta.Live,
-		Ready:            meta.Ready,
-		NATSConnected:    meta.NATSConnected,
-		Models:           models,
-		MicroserviceName: meta.MicroserviceName,
-		NodeUID:          meta.NodeUID,
-		ApplicationName:  meta.ApplicationName,
+		Schema:             schemaVersion,
+		ServerID:           meta.ServerID,
+		Live:               meta.Live,
+		Ready:              meta.Ready,
+		NATSConnected:      meta.NATSConnected,
+		ExecutionProviders: providers,
+		ORTVersion:         meta.ORTVersion,
+		Models:             models,
+		MicroserviceName:   meta.MicroserviceName,
+		NodeUID:            meta.NodeUID,
+		ApplicationName:    meta.ApplicationName,
 	}
 	body, err := json.Marshal(doc)
 	if err != nil {
@@ -110,15 +122,17 @@ func (r *Registry) Snapshot(meta SnapshotMeta) ([]byte, error) {
 }
 
 type snapshotDoc struct {
-	Schema           int             `json:"schema"`
-	ServerID         string          `json:"server_id"`
-	Live             bool            `json:"live"`
-	Ready            bool            `json:"ready"`
-	NATSConnected    bool            `json:"nats_connected"`
-	Models           []snapshotModel `json:"models"`
-	MicroserviceName string          `json:"microservice_name,omitempty"`
-	NodeUID          string          `json:"node_uid,omitempty"`
-	ApplicationName  string          `json:"application_name,omitempty"`
+	Schema             int             `json:"schema"`
+	ServerID           string          `json:"server_id"`
+	Live               bool            `json:"live"`
+	Ready              bool            `json:"ready"`
+	NATSConnected      bool            `json:"nats_connected"`
+	ExecutionProviders []string        `json:"execution_providers"`
+	ORTVersion         string          `json:"ort_version"`
+	Models             []snapshotModel `json:"models"`
+	MicroserviceName   string          `json:"microservice_name,omitempty"`
+	NodeUID            string          `json:"node_uid,omitempty"`
+	ApplicationName    string          `json:"application_name,omitempty"`
 }
 
 type snapshotModel struct {

@@ -41,13 +41,17 @@ func ListenAddr(port int) string {
 type Server struct {
 	openinference.UnimplementedGRPCInferenceServiceServer
 
-	checker   *auth.Checker
-	ready     func() bool
-	catalog   Catalog
-	runner    Runner
-	payload   int
-	logger    *slog.Logger
-	tlsConfig *tls.Config
+	checker    *auth.Checker
+	ready      func() bool
+	catalog    Catalog
+	runner     Runner
+	payload    int
+	logger     *slog.Logger
+	tlsConfig  *tls.Config
+	name       string
+	version    string
+	providers  []string
+	ortVersion string
 
 	once sync.Once
 	rpc  *grpc.Server
@@ -69,6 +73,25 @@ func NewTLS(checker *auth.Checker, ready func() bool, tlsConfig *tls.Config) *Se
 
 func newServer(checker *auth.Checker, ready func() bool, tlsConfig *tls.Config) *Server {
 	return &Server{checker: checker, ready: ready, tlsConfig: tlsConfig}
+}
+
+// SetIdentity records the server id and engine version that server metadata reports.
+func (s *Server) SetIdentity(name, version string) {
+	if s == nil {
+		return
+	}
+	s.name = name
+	s.version = version
+}
+
+// SetRuntime records the execution provider chain and the ONNX Runtime version that server metadata reports.
+// An empty chain and an empty version mean the runtime library did not load.
+func (s *Server) SetRuntime(providers []string, ortVersion string) {
+	if s == nil {
+		return
+	}
+	s.providers = append([]string(nil), providers...)
+	s.ortVersion = ortVersion
 }
 
 // Serve accepts connections on lis until Stop or GracefulStop.
@@ -129,12 +152,32 @@ func (s *Server) intercept(ctx context.Context, req any, info *grpc.UnaryServerI
 	model, version := requestModel(req)
 	decision, err := s.checker.AuthorizeGRPC(fullMethod, model, version, authorizationHeader(ctx), time.Now())
 	if err != nil || decision != auth.Allow {
+		logged := auth.Unauthenticated
 		if decision == auth.Forbidden {
+			logged = auth.Forbidden
+			s.logAuth(fullMethod, model, logged)
 			return nil, status.Error(codes.PermissionDenied, statusForbidden)
 		}
+		s.logAuth(fullMethod, model, logged)
 		return nil, status.Error(codes.Unauthenticated, statusUnauthenticated)
 	}
 	return handler(ctx, req)
+}
+
+// logAuth records one denied call. The credential and the claims stay out of the line.
+func (s *Server) logAuth(fullMethod, model string, decision auth.Decision) {
+	if s == nil || s.logger == nil {
+		return
+	}
+	attrs := []any{
+		"transport", "grpc",
+		"method", fullMethod,
+		"decision", decision.String(),
+	}
+	if model != "" {
+		attrs = append(attrs, "model", model)
+	}
+	s.logger.Warn("auth", attrs...)
 }
 
 func requestModel(req any) (string, string) {

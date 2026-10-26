@@ -2,6 +2,7 @@ package grpcapi
 
 import (
 	"context"
+	"strings"
 
 	"google.golang.org/grpc/status"
 
@@ -10,8 +11,6 @@ import (
 )
 
 const (
-	serverName     = "inference"
-	serverVersion  = "dev"
 	modelPlatform  = "onnxruntime_onnx"
 	repositoryNote = "loading and unloading models is not supported"
 
@@ -44,15 +43,21 @@ func (s *Server) RegisterReads(catalog Catalog) {
 // ServerMetadata reports the server name, version, and extensions.
 func (s *Server) ServerMetadata(context.Context, *openinference.ServerMetadataRequest) (*openinference.ServerMetadataResponse, error) {
 	return &openinference.ServerMetadataResponse{
-		Name:    serverName,
-		Version: serverVersion,
-		Extensions: []string{
-			"binary_tensor_data",
-			"model_repository",
-			"parameters",
-			"schedule_policy",
-		},
+		Name:       s.name,
+		Version:    s.version,
+		Extensions: serverExtensions(s.providers, s.ortVersion),
 	}, nil
+}
+
+func serverExtensions(providers []string, ortVersion string) []string {
+	return []string{
+		"binary_tensor_data",
+		"model_repository",
+		"parameters",
+		"schedule_policy",
+		"execution_providers:" + strings.Join(providers, ","),
+		"ort_version:" + ortVersion,
+	}
 }
 
 // ModelMetadata reports the selected version's signature.

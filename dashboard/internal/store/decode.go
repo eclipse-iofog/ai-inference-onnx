@@ -65,19 +65,29 @@ func snapshotFrom(obj map[string]any) (snapshot, bool) {
 	if !ok {
 		return snapshot{}, false
 	}
+	providers, ok := optionalStrings(obj, "execution_providers")
+	if !ok {
+		return snapshot{}, false
+	}
+	ortVersion, ok := optionalString(obj, "ort_version")
+	if !ok {
+		return snapshot{}, false
+	}
 	models, ok := decodeModels(obj["models"])
 	if !ok {
 		return snapshot{}, false
 	}
 	return snapshot{
-		serverID:         serverID,
-		microserviceName: microservice,
-		nodeUID:          node,
-		applicationName:  application,
-		live:             live,
-		ready:            ready,
-		natsConnected:    connected,
-		models:           models,
+		serverID:           serverID,
+		microserviceName:   microservice,
+		nodeUID:            node,
+		applicationName:    application,
+		live:               live,
+		ready:              ready,
+		natsConnected:      connected,
+		executionProviders: providers,
+		ortVersion:         ortVersion,
+		models:             models,
 	}, true
 }
 
@@ -231,6 +241,29 @@ func validServerID(id string) bool {
 		return false
 	}
 	return !strings.ContainsAny(id, ".*/>")
+}
+
+func optionalStrings(obj map[string]any, key string) ([]string, bool) {
+	v, present := obj[key]
+	if !present || v == nil {
+		return nil, true
+	}
+	items, ok := v.([]any)
+	if !ok {
+		return nil, false
+	}
+	out := make([]string, 0, len(items))
+	for _, item := range items {
+		text, textOK := stringFrom(item)
+		if !textOK {
+			return nil, false
+		}
+		if text == "" {
+			continue
+		}
+		out = append(out, text)
+	}
+	return out, true
 }
 
 func optionalString(obj map[string]any, key string) (string, bool) {

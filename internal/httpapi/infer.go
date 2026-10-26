@@ -36,8 +36,9 @@ type InferConfig struct {
 	// A larger body is rejected and is not submitted.
 	MaxPayloadBytes int
 	// Logger records infer outcomes. A nil logger records nothing.
-	// Success is debug and includes timing. A rejected caller is warn. A run that did not finish is error.
-	// The log does not include the tensor body or the caller's credential.
+	// Success is debug. A rejected caller is warn. A run that did not finish is error.
+	// The line names the transport, model, version, request id, status, and duration.
+	// It does not include the tensor body or the caller's credential.
 	Logger *slog.Logger
 }
 
@@ -60,7 +61,7 @@ func (s *Server) handleInfer(w http.ResponseWriter, r *http.Request) {
 	started := time.Now()
 	name, requested := modelRef(r.URL.Path)
 	if !requireMethod(w, r, http.MethodPost) {
-		s.logMethod(name, requested, started)
+		s.logMethod(r.Context(), name, requested, started)
 		return
 	}
 	dir, chosen, err := batch.Select(s.directories(), name, requested)
@@ -70,28 +71,28 @@ func (s *Server) handleInfer(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		batch.NoteFailure(s.runner, dir.Name, chosen.Version, err)
-		s.logInfer(name, logged, started, err)
+		s.logInfer(r.Context(), name, logged, "", started, err)
 		writeStatus(w, err)
 		return
 	}
 	body, err := readPayload(r, s.payload)
 	if err != nil {
 		batch.NoteFailure(s.runner, dir.Name, chosen.Version, err)
-		s.logInfer(name, logged, started, err)
+		s.logInfer(r.Context(), name, logged, "", started, err)
 		writeStatus(w, err)
 		return
 	}
 	header, err := inferenceHeaderLength(r)
 	if err != nil {
 		batch.NoteFailure(s.runner, dir.Name, chosen.Version, err)
-		s.logInfer(name, logged, started, err)
+		s.logInfer(r.Context(), name, logged, "", started, err)
 		writeStatus(w, err)
 		return
 	}
 	req, err := batch.DecodeHTTP(chosen.Signature, body, header)
 	if err != nil {
 		batch.NoteFailure(s.runner, dir.Name, chosen.Version, err)
-		s.logInfer(name, logged, started, err)
+		s.logInfer(r.Context(), name, logged, "", started, err)
 		writeStatus(w, err)
 		return
 	}
@@ -100,13 +101,13 @@ func (s *Server) handleInfer(w http.ResponseWriter, r *http.Request) {
 		defer reply.Release()
 	}
 	if err != nil {
-		s.logInfer(name, logged, started, err)
+		s.logInfer(r.Context(), name, logged, req.ID, started, err)
 		writeStatus(w, err)
 		return
 	}
 	outputs, err := responseOutputs(req, reply)
 	if err != nil {
-		s.logInfer(name, logged, started, err)
+		s.logInfer(r.Context(), name, logged, req.ID, started, err)
 		writeStatus(w, err)
 		return
 	}
@@ -117,11 +118,11 @@ func (s *Server) handleInfer(w http.ResponseWriter, r *http.Request) {
 		Outputs:      outputs,
 	})
 	if err != nil {
-		s.logInfer(name, logged, started, err)
+		s.logInfer(r.Context(), name, logged, req.ID, started, err)
 		writeStatus(w, err)
 		return
 	}
-	s.logInfer(name, logged, started, nil)
+	s.logInfer(r.Context(), name, logged, req.ID, started, nil)
 	writeInfer(w, encoded)
 }
 
@@ -208,37 +209,16 @@ func writeInfer(w http.ResponseWriter, encoded batch.Encoded) {
 	}
 }
 
-func (s *Server) logInfer(name, version string, started time.Time, err error) {
-	if s == nil || s.logger == nil {
+func (s *Server) logInfer(ctx context.Context, name, version, id string, started time.Time, err error) {
+	if s == nil {
 		return
 	}
-	result := batch.Status(err)
-	msg := "infer finished"
-	attrs := []any{
-		"model", name,
-		"version", version,
-		"status", result.HTTP,
-		"duration", time.Since(started).String(),
-	}
-	if err != nil {
-		msg = "infer rejected"
-		if result.Level >= slog.LevelError {
-			msg = "infer did not finish"
-		}
-		attrs = append(attrs, "error", result.Message)
-	}
-	s.logger.Log(context.Background(), result.Level, msg, attrs...)
+	batch.LogInfer(ctx, s.logger, "http", name, version, id, started, err)
 }
 
-func (s *Server) logMethod(name, version string, started time.Time) {
-	if s == nil || s.logger == nil {
+func (s *Server) logMethod(ctx context.Context, name, version string, started time.Time) {
+	if s == nil {
 		return
 	}
-	s.logger.Warn("infer rejected",
-		"model", name,
-		"version", version,
-		"status", http.StatusMethodNotAllowed,
-		"duration", time.Since(started).String(),
-		"error", "method not allowed",
-	)
+	batch.LogInferResult(ctx, s.logger, "http", name, version, "", started, batch.MethodNotAllowed())
 }

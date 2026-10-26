@@ -22,7 +22,7 @@ Model metadata, model ready, and infer also accept `/versions/{version}`. Omit t
 
 States are `READY`, `LOADING`, and `UNAVAILABLE`. `reason` is set when the state is not `READY`. There is no `UNLOADING` state.
 
-Server metadata names the extensions `binary_tensor_data`, `model_repository`, `parameters`, and `schedule_policy`. It does not advertise unloading dependents. Load and unload are not available, because the platform places and replaces the files.
+Server metadata `name` is the [server id](configuration.md). `version` is the engine version linked into the image, or `dev` when the binary was built without one. The extensions are `binary_tensor_data`, `model_repository`, `parameters`, and `schedule_policy`, then `execution_providers:` and `ort_version:`. `execution_providers:` lists the providers this process appended, in that order, separated by commas. A CPU image is `execution_providers:CPUExecutionProvider`. A TensorRT image is `execution_providers:TensorrtExecutionProvider,CUDAExecutionProvider`. `ort_version:` is the ONNX Runtime version of the loaded library, for example `ort_version:1.31.0`. Both values are empty after the colon when that library did not load. gRPC and NATS return the same extensions. It does not advertise unloading dependents. Load and unload are not available, because the platform places and replaces the files.
 
 ## Infer
 

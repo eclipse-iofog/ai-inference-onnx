@@ -50,6 +50,22 @@ func TestRuntimeModelBecomesReady(t *testing.T) {
 
 	waitStatus(t, ports.http, "/v2/health/live", http.StatusOK, 20*time.Second)
 	waitStatus(t, ports.http, "/v2/health/ready", http.StatusOK, 20*time.Second)
+	status, body := get(t, ports.http, "/v2")
+	if status != http.StatusOK {
+		t.Fatalf("metadata %d %s", status, body)
+	}
+	var meta struct {
+		Name       string   `json:"name"`
+		Version    string   `json:"version"`
+		Extensions []string `json:"extensions"`
+	}
+	if err := json.Unmarshal(body, &meta); err != nil {
+		t.Fatalf("metadata %s: %v", body, err)
+	}
+	if meta.Version != "dev" || !strings.Contains(string(body), `"execution_providers:CPUExecutionProvider"`) || !strings.Contains(string(body), `"ort_version:1.31.0"`) {
+		t.Fatalf("metadata %s", body)
+	}
+	assertGRPCServerMetadata(t, ports.grpc, meta.Name, "dev", "execution_providers:CPUExecutionProvider", "ort_version:1.31.0")
 	assertGRPCHealth(t, ports.grpc, true)
 	assertAddInfer(t, ports.http)
 	assertGRPCAddInfer(t, ports.grpc)
@@ -70,10 +86,10 @@ func TestRuntimeModelBecomesReady(t *testing.T) {
 	stopProcess(t, proc)
 	var chains, cacheWarns int
 	for _, line := range decodeLog(t, proc.stdout.String()) {
-		if strings.EqualFold(line.Level, "info") && line.Msg == "execution providers: CPUExecutionProvider" {
+		if strings.EqualFold(line.Level, "info") && line.Msg == "runtime" && len(line.Providers) == 1 && line.Providers[0] == "CPUExecutionProvider" {
 			chains++
 		}
-		if strings.EqualFold(line.Level, "warn") && strings.Contains(line.Msg, "user cache directory") {
+		if strings.EqualFold(line.Level, "warn") && line.Msg == "cache" {
 			cacheWarns++
 		}
 	}

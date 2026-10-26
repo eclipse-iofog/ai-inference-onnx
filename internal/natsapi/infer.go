@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
@@ -51,7 +50,7 @@ func (h *Handler) infer(conn publisher, msg *nats.Msg, sub Subject) {
 }
 
 func (h *Handler) refuseInfer(conn publisher, msg *nats.Msg, sub Subject, started time.Time, err error) {
-	h.logInfer(sub.Model, sub.Version, started, err)
+	h.logInfer(sub.Model, sub.Version, "", started, err)
 	h.writeError(conn, msg, err)
 }
 
@@ -63,8 +62,8 @@ func (h *Handler) inline(conn publisher, msg *nats.Msg, sub Subject, started tim
 		h.refuseInfer(conn, msg, sub, started, err)
 		return
 	}
-	encoded, err := h.inlineBody(dir, chosen, msg)
-	h.logInfer(sub.Model, chosen.Version, started, err)
+	encoded, id, err := h.inlineBody(dir, chosen, msg)
+	h.logInfer(sub.Model, chosen.Version, id, started, err)
 	if err != nil {
 		h.writeError(conn, msg, err)
 		return
@@ -72,45 +71,46 @@ func (h *Handler) inline(conn publisher, msg *nats.Msg, sub Subject, started tim
 	h.writeInfer(conn, msg, encoded)
 }
 
-func (h *Handler) inlineBody(dir batch.Directory, chosen batch.ModelVersion, msg *nats.Msg) (batch.Encoded, error) {
+func (h *Handler) inlineBody(dir batch.Directory, chosen batch.ModelVersion, msg *nats.Msg) (batch.Encoded, string, error) {
 	if len(msg.Data) > max(h.cfg.MaxPayloadBytes, 0) {
 		err := &batch.InvalidError{Reason: payloadTooLarge}
 		batch.NoteFailure(h.cfg.Runner, dir.Name, chosen.Version, err)
-		return batch.Encoded{}, err
+		return batch.Encoded{}, "", err
 	}
 	headerLength, err := inferenceHeaderLength(msg.Header)
 	if err != nil {
 		batch.NoteFailure(h.cfg.Runner, dir.Name, chosen.Version, err)
-		return batch.Encoded{}, err
+		return batch.Encoded{}, "", err
 	}
 	return h.execute(dir, chosen, msg.Data, headerLength)
 }
 
 // execute decodes one HTTP infer body, queues it on the chosen version, and encodes the HTTP response body.
 // headerLength is batch.NoHeaderLength when the request did not set Inference-Header-Content-Length.
-func (h *Handler) execute(dir batch.Directory, chosen batch.ModelVersion, body []byte, headerLength int64) (batch.Encoded, error) {
+func (h *Handler) execute(dir batch.Directory, chosen batch.ModelVersion, body []byte, headerLength int64) (batch.Encoded, string, error) {
 	req, err := batch.DecodeHTTP(chosen.Signature, body, headerLength)
 	if err != nil {
 		batch.NoteFailure(h.cfg.Runner, dir.Name, chosen.Version, err)
-		return batch.Encoded{}, err
+		return batch.Encoded{}, "", err
 	}
 	reply, err := h.run(h.cfg.Context, dir.Name, chosen.Version, req)
 	if reply != nil {
 		defer reply.Release()
 	}
 	if err != nil {
-		return batch.Encoded{}, err
+		return batch.Encoded{}, req.ID, err
 	}
 	outputs, err := responseOutputs(req, reply)
 	if err != nil {
-		return batch.Encoded{}, err
+		return batch.Encoded{}, req.ID, err
 	}
-	return batch.EncodeHTTP(batch.Response{
+	encoded, err := batch.EncodeHTTP(batch.Response{
 		ModelName:    dir.Name,
 		ModelVersion: chosen.Version,
 		ID:           req.ID,
 		Outputs:      outputs,
 	})
+	return encoded, req.ID, err
 }
 
 func (h *Handler) run(ctx context.Context, name, version string, req *batch.Request) (*batch.Reply, error) {
@@ -172,25 +172,6 @@ func inferenceHeaderLength(header nats.Header) (int64, error) {
 	return n, nil
 }
 
-func (h *Handler) logInfer(name, version string, started time.Time, err error) {
-	if h.cfg.Logger == nil {
-		return
-	}
-	result := batch.Status(err)
-	msg := "infer finished"
-	attrs := []any{
-		"transport", "nats",
-		"model", name,
-		"version", version,
-		"status", result.HTTP,
-		"duration", time.Since(started).String(),
-	}
-	if err != nil {
-		msg = "infer rejected"
-		if result.Level >= slog.LevelError {
-			msg = "infer did not finish"
-		}
-		attrs = append(attrs, "error", result.Message)
-	}
-	h.cfg.Logger.Log(context.Background(), result.Level, msg, attrs...)
+func (h *Handler) logInfer(name, version, id string, started time.Time, err error) {
+	batch.LogInfer(h.cfg.Context, h.cfg.Logger, "nats", name, version, id, started, err)
 }

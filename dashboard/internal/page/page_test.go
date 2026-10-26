@@ -128,18 +128,20 @@ func TestFixtureViews(t *testing.T) {
 		"<dt>Server id</dt><dd>engine-b</dd>",
 		"<dt>Node</dt><dd>node-2</dd>",
 		"<dt>Application</dt><dd>line</dd>",
-		"<dt>Live</dt><dd>yes</dd>",
-		"<dt>Ready</dt><dd>yes</dd>",
-		"<dt>NATS connected</dt><dd>yes</dd>",
-		`Provider image <span class="unknown">unknown</span>`,
-		"<h2>wafer-defect 1</h2>",
+		`<dt>Live</dt><dd><span class="chip chip-on">Live</span></dd>`,
+		`<dt>Ready</dt><dd><span class="chip chip-on">Ready</span></dd>`,
+		`<dt>NATS connected</dt><dd><span class="chip chip-on">NATS</span></dd>`,
+		`<dt>ONNX Runtime</dt><dd><span class="chip unknown">unknown</span></dd>`,
+		`<dt>Execution providers</dt><dd><span class="chip unknown">unknown</span></dd>`,
+		"<h2>wafer-defect</h2>",
+		`<span class="chip">version:1</span>`,
 		"<p>Queue depth 1</p>",
-		"<p>Success 2</p>",
-		"<li>REJECTED 0</li>",
-		"<li>CANCELED 0</li>",
-		"<li>BACKEND 0</li>",
-		"<li>OTHER 1</li>",
-		"<p>Failures 1</p>",
+		`<span class="chip chip-on">Success 2</span>`,
+		`<span class="chip">REJECTED 0</span>`,
+		`<span class="chip">CANCELED 0</span>`,
+		`<span class="chip">BACKEND 0</span>`,
+		`<span class="chip chip-off">OTHER 1</span>`,
+		`<span class="chip chip-off">Failures 1</span>`,
 		"<p>Average batch size 4.00</p>",
 		`<span class="state-ready">READY</span>`,
 		"Last snapshot 2026-10-16T12:00:10Z",
@@ -210,10 +212,10 @@ func TestIntervalGraph(t *testing.T) {
 		"0.050 ms",
 		"0.300 /s",
 		"33.3%",
-		"<li class=\"series-0\">Success</li>",
-		"<li class=\"series-1\">Failure</li>",
-		"<li class=\"series-2\">OTHER</li>",
-		"wafer-defect 1 2026-10-16T12:00:10Z 0.100 ms",
+		"<li class=\"rate-success\">Success</li>",
+		"<li class=\"rate-failure\">Failure</li>",
+		"<li class=\"rate-other\">OTHER</li>",
+		"wafer-defect:1 2026-10-16T12:00:10Z 0.100 ms",
 	} {
 		if !strings.Contains(engine, text) {
 			t.Fatalf("missing %s", text)
@@ -222,7 +224,7 @@ func TestIntervalGraph(t *testing.T) {
 	if strings.Contains(engine, "<canvas") || strings.Contains(engine, "0.075 ms") || strings.Contains(engine, ">REJECTED</li>") {
 		t.Fatal("lifetime latency or a canvas chart")
 	}
-	if strings.Contains(engine, "<li class=\"series-2\">REJECTED</li>") || strings.Contains(engine, "<li class=\"series-3\">CANCELED</li>") {
+	if strings.Contains(engine, "<li class=\"rate-rejected\">REJECTED</li>") || strings.Contains(engine, "<li class=\"rate-canceled\">CANCELED</li>") {
 		t.Fatal("zero failure reasons")
 	}
 	selected := render(t, func(w io.Writer) error {
@@ -234,7 +236,7 @@ func TestIntervalGraph(t *testing.T) {
 	missing := render(t, func(w io.Writer) error {
 		return page.EngineModel(w, snapshots, "engine-a", "missing", page.ConnectionUp)
 	})
-	if strings.Count(missing, "This model is not on the latest snapshot.") != 5 || strings.Contains(missing, "<svg") || strings.Contains(missing, "<h2>wafer-defect 1</h2>") {
+	if strings.Count(missing, "This model is not on the latest snapshot.") != 5 || strings.Contains(missing, "<svg") || strings.Contains(missing, "version:1") {
 		t.Fatal("missing model")
 	}
 
@@ -261,8 +263,44 @@ func TestIntervalGraph(t *testing.T) {
 	after := render(t, func(w io.Writer) error {
 		return page.Engine(w, snapshots, "engine-a", page.ConnectionUp)
 	})
-	if !strings.Contains(after, "Request latency unknown") || !strings.Contains(after, "0.100 ms") {
+	if strings.Contains(after, "Request latency unknown") || !strings.Contains(after, "0.100 ms") {
 		t.Fatal("reset interval")
+	}
+}
+
+func TestQuietIntervalKeepsTheWindow(t *testing.T) {
+	at := fixtureAt()
+	now := at
+	snapshots := store.New(func() time.Time { return now })
+	if !snapshots.Accept([]byte(counterSnapshot("engine-a", "wafer-defect", "1", 2, 100))) {
+		t.Fatal("first snapshot was dropped")
+	}
+	now = at.Add(10 * time.Second)
+	if !snapshots.Accept([]byte(counterSnapshot("engine-a", "wafer-defect", "1", 4, 300))) {
+		t.Fatal("second snapshot was dropped")
+	}
+	now = at.Add(20 * time.Second)
+	if !snapshots.Accept([]byte(counterSnapshot("engine-a", "wafer-defect", "1", 4, 300))) {
+		t.Fatal("quiet snapshot was dropped")
+	}
+	engine := render(t, func(w io.Writer) error {
+		return page.Engine(w, snapshots, "engine-a", page.ConnectionUp)
+	})
+	if strings.Contains(engine, "Request latency unknown") || !strings.Contains(engine, "0.100 ms") || !strings.Contains(engine, "0.100 /s") {
+		t.Fatal("quiet interval cleared the window")
+	}
+	models := render(t, func(w io.Writer) error {
+		return page.Models(w, snapshots, page.ConnectionUp)
+	})
+	row := between(t, models, "<tbody>", "</tbody>")
+	if !strings.Contains(row, "0.100 ms") || !strings.Contains(row, "0.100 /s") || strings.Contains(row, "unknown") {
+		t.Fatal("models window")
+	}
+	nodes := render(t, func(w io.Writer) error {
+		return page.Nodes(w, snapshots, page.ConnectionUp)
+	})
+	if !strings.Contains(nodes, "0.100 ms") || strings.Contains(between(t, nodes, "<tbody>", "</tbody>"), "unknown") {
+		t.Fatal("nodes window")
 	}
 }
 
@@ -371,7 +409,7 @@ func TestStaleEngineLeavesTheLists(t *testing.T) {
 	if !strings.Contains(stale, `<h1 class="stale">This engine is stale.</h1>`) {
 		t.Fatal("stale color")
 	}
-	for _, text := range []string{"This engine is unknown.", "wafer-defect", "Queue depth", "Provider image", "No engines."} {
+	for _, text := range []string{"This engine is unknown.", "wafer-defect", "Queue depth", "ONNX Runtime", "Execution providers", "No engines."} {
 		if strings.Contains(stale, text) {
 			t.Fatalf("stale page contains %s", text)
 		}
@@ -438,7 +476,7 @@ func TestUnknownEngine(t *testing.T) {
 	if !strings.Contains(unknown, "NATS is not configured.") || strings.Contains(unknown, "NATS is not connected.") {
 		t.Fatal("connection sentence")
 	}
-	for _, text := range []string{"This engine is stale.", "wafer-defect", "engine-a", "Queue depth", "No engines."} {
+	for _, text := range []string{"This engine is stale.", "wafer-defect", "engine-a", "Queue depth", "ONNX Runtime", "Execution providers", "No engines."} {
 		if strings.Contains(unknown, text) {
 			t.Fatalf("unknown page contains %s", text)
 		}
@@ -609,7 +647,7 @@ func TestUnsetNodeIsLast(t *testing.T) {
 	if !strings.Contains(detail, `<dt>Node</dt><dd class="unknown">unknown</dd>`) || !strings.Contains(detail, `<dt>Application</dt><dd class="unknown">unknown</dd>`) {
 		t.Fatal("unset platform names")
 	}
-	if !strings.Contains(detail, "<dt>Live</dt><dd>no</dd>") {
+	if !strings.Contains(detail, `<dt>Live</dt><dd><span class="chip chip-off">Live</span></dd>`) {
 		t.Fatal("live")
 	}
 }
@@ -646,9 +684,9 @@ func TestRatiosAndSamples(t *testing.T) {
 	if !strings.Contains(engine, "<svg") || strings.Contains(engine, "<canvas") {
 		t.Fatal("queue graph")
 	}
-	first := strings.Index(engine, "wafer-defect 1 2026-10-16T12:00:00Z 1")
-	second := strings.Index(engine, "wafer-defect 1 2026-10-16T12:00:10Z 2")
-	third := strings.Index(engine, "wafer-defect 1 2026-10-16T12:00:20Z 4")
+	first := strings.Index(engine, "wafer-defect:1 2026-10-16T12:00:00Z 1")
+	second := strings.Index(engine, "wafer-defect:1 2026-10-16T12:00:10Z 2")
+	third := strings.Index(engine, "wafer-defect:1 2026-10-16T12:00:20Z 4")
 	if first < 0 || second < first || third < second {
 		t.Fatal("sample order")
 	}
@@ -834,7 +872,7 @@ func TestSecondModelNameAndStates(t *testing.T) {
 	if !strings.Contains(engine, "Reason missing") || !strings.Contains(engine, "Reason reading") {
 		t.Fatal("reasons")
 	}
-	if !strings.Contains(engine, "<li>REJECTED 1</li>") || !strings.Contains(engine, "<p>Failures 1</p>") {
+	if !strings.Contains(engine, `<span class="chip chip-off">REJECTED 1</span>`) || !strings.Contains(engine, `<span class="chip chip-off">Failures 1</span>`) {
 		t.Fatal("failure sum")
 	}
 	if !strings.Contains(engine, "<p>Average batch size 1.00</p>") || !strings.Contains(engine, "<p>Average batch size 3.00</p>") {
@@ -842,12 +880,13 @@ func TestSecondModelNameAndStates(t *testing.T) {
 	}
 }
 
-func TestProviderImageStaysUnknown(t *testing.T) {
+func TestRuntimeBadges(t *testing.T) {
 	at := fixtureAt()
 	now := at
 	snapshots := store.New(func() time.Time { return now })
 	body := strings.Replace(fixtureEngineA, "{\n", "{\n  \"image\": \"cpu\",\n", 1)
 	body = strings.Replace(body, `"model": "wafer-defect"`, `"image": "cpu", "model": "wafer-defect"`, 1)
+	body = strings.Replace(body, `"nats_connected": true,`, `"nats_connected": true, "execution_providers": ["TensorrtExecutionProvider", "CUDAExecutionProvider"], "ort_version": "1.31.0",`, 1)
 	if !snapshots.Accept([]byte(body)) {
 		t.Fatal("engine-a was dropped")
 	}
@@ -855,18 +894,31 @@ func TestProviderImageStaysUnknown(t *testing.T) {
 	if !snapshots.Accept([]byte(fixtureEngineB)) {
 		t.Fatal("engine-b was dropped")
 	}
-	for _, id := range []string{"engine-a", "engine-b"} {
-		engine := render(t, func(w io.Writer) error {
-			return page.Engine(w, snapshots, id, page.ConnectionUp)
-		})
-		if !strings.Contains(engine, `Provider image <span class="unknown">unknown</span>`) || strings.Contains(engine, "cpu") {
-			t.Fatalf("%s provider image", id)
+	engineA := render(t, func(w io.Writer) error {
+		return page.Engine(w, snapshots, "engine-a", page.ConnectionUp)
+	})
+	for _, text := range []string{
+		`<dt>ONNX Runtime</dt><dd><span class="chip">1.31.0</span></dd>`,
+		`<span class="chip">TensorrtExecutionProvider</span>`,
+		`<span class="chip">CUDAExecutionProvider</span>`,
+	} {
+		if !strings.Contains(engineA, text) || strings.Contains(engineA, "Provider image") || strings.Contains(engineA, "cpu") {
+			t.Fatalf("runtime badges %s", text)
 		}
+	}
+	if strings.Index(engineA, "TensorrtExecutionProvider") > strings.Index(engineA, "CUDAExecutionProvider") {
+		t.Fatal("provider order")
+	}
+	engineB := render(t, func(w io.Writer) error {
+		return page.Engine(w, snapshots, "engine-b", page.ConnectionUp)
+	})
+	if !strings.Contains(engineB, `<span class="chip unknown">unknown</span>`) || strings.Contains(engineB, "1.31.0") || strings.Contains(engineB, "cpu") {
+		t.Fatal("engine-b runtime")
 	}
 	models := render(t, func(w io.Writer) error {
 		return page.Models(w, snapshots, page.ConnectionUp)
 	})
-	if strings.Contains(models, "cpu") || !strings.Contains(models, "unknown") {
+	if strings.Contains(models, "cpu") || strings.Contains(models, "TensorrtExecutionProvider") || strings.Contains(models, "1.31.0") {
 		t.Fatal("models page")
 	}
 }

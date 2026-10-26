@@ -95,7 +95,7 @@ The wire contract is the KServe Open Inference Protocol, version 2. The gRPC ser
 
 With TLS off, which is the default, REST is HTTP and gRPC is h2c. `tlsEnabled` presents one certificate on both. `tlsCA` requires a client certificate. The metrics port stays plain HTTP.
 
-Server metadata advertises the extensions `binary_tensor_data`, `model_repository`, `parameters`, and `schedule_policy`.
+Server metadata `name` is the server id. `version` is the engine version linked into the image, or `dev` when the binary was built without one. The extensions are `binary_tensor_data`, `model_repository`, `parameters`, and `schedule_policy`, then `execution_providers:` and `ort_version:`. Those two name the execution provider chain and the loaded ONNX Runtime version. Both are empty after the colon when the library did not load.
 
 | Call | REST | gRPC |
 |---|---|---|
@@ -219,7 +219,7 @@ Tag, device, and license detail: [Images](docs/reference/images.md).
 
 ## Dashboard and metrics
 
-The dashboard listens on 8080. It does not run inference and it does not read the engine config file. It subscribes to `inference.metrics.engines.>` and shows Nodes, Models, and Engine. The engine view graphs request rate and latency for the last 15 minutes, and each page reloads every 10 seconds. An engine is stale at 30 seconds and drops off the live view. `GET /health` on the dashboard means the process can answer.
+The dashboard listens on 8080. It does not run inference and it does not read the engine config file. It subscribes to `inference.metrics.engines.>` and shows Nodes, Models, and Engine. Rate and latency on those views are the last 15 minutes, the engine view graphs that same window, and each page reloads every 10 seconds. The engine view also shows the ONNX Runtime version and the execution provider chain. An engine is stale at 30 seconds and drops off the live view. `GET /health` on the dashboard means the process can answer.
 
 `GET /metrics` on the engine publishes the `inference_` prefix for Prometheus. The same numbers are published on NATS. The scrape is open. Model names on that port are operational metadata. NVML gauges are published when NVML loads, which is the CUDA and TensorRT images. Names: [Metrics](docs/reference/metrics.md). The views: [Dashboard](docs/user-guide/dashboard.md).
 
@@ -239,7 +239,7 @@ The engine reads `/etc/inference/config.yaml`. `CONFIG_PATH` selects another pat
 | `metricsPort` | `METRICS_PORT` | `8002` |
 | `logLevel` | `LOG_LEVEL` | `info` |
 
-One JSON logger writes to stdout. The log never contains the static token, a bearer token, a JWT, the creds file, a private key, or tensor values. Every key: [Configuration](docs/reference/configuration.md).
+One JSON logger writes to stdout. After settings load, each line includes the server id. The log never contains the static token, a bearer token, a JWT, the creds file, a private key, or tensor values. Every key: [Configuration](docs/reference/configuration.md).
 
 ## Documentation
 

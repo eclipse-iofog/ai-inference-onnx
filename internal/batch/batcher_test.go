@@ -501,24 +501,25 @@ func TestStatusTable(t *testing.T) {
 		http int
 		code codes.Code
 		text string
+		kind string
 	}{
-		{"success", nil, http.StatusOK, codes.OK, ""},
-		{"loading", Loading(loadingReason), http.StatusServiceUnavailable, codes.Unavailable, loadingReason},
-		{"not found", NotFound(`model "x" was not found`), http.StatusNotFound, codes.NotFound, `model "x" was not found`},
-		{"unavailable", Unavailable(unavailableReason), http.StatusBadRequest, codes.FailedPrecondition, unavailableReason},
-		{"queue full", ErrQueueFull, http.StatusServiceUnavailable, codes.Unavailable, queueFullText},
-		{"queue timeout", ErrQueueTimeout, http.StatusGatewayTimeout, codes.DeadlineExceeded, queueTimeoutText},
-		{"context deadline", context.DeadlineExceeded, http.StatusGatewayTimeout, codes.DeadlineExceeded, deadlineText},
-		{"cancel", context.Canceled, http.StatusBadRequest, codes.Canceled, canceledText},
-		{"invalid", invalidf("bad shape"), http.StatusBadRequest, codes.InvalidArgument, "bad shape"},
-		{"runtime", errors.New("onnx failure"), http.StatusInternalServerError, codes.Internal, "model run failed: onnx failure"},
-		{"unimplemented", Unimplemented("load is not supported"), http.StatusNotImplemented, codes.Unimplemented, "load is not supported"},
+		{"success", nil, http.StatusOK, codes.OK, "", ""},
+		{"loading", Loading(loadingReason), http.StatusServiceUnavailable, codes.Unavailable, loadingReason, errorKindLoading},
+		{"not found", NotFound(`model "x" was not found`), http.StatusNotFound, codes.NotFound, `model "x" was not found`, errorKindNotFound},
+		{"unavailable", Unavailable(unavailableReason), http.StatusBadRequest, codes.FailedPrecondition, unavailableReason, errorKindUnavailable},
+		{"queue full", ErrQueueFull, http.StatusServiceUnavailable, codes.Unavailable, queueFullText, errorKindQueueFull},
+		{"queue timeout", ErrQueueTimeout, http.StatusGatewayTimeout, codes.DeadlineExceeded, queueTimeoutText, errorKindQueueTimeout},
+		{"context deadline", context.DeadlineExceeded, http.StatusGatewayTimeout, codes.DeadlineExceeded, deadlineText, errorKindDeadline},
+		{"cancel", context.Canceled, http.StatusBadRequest, codes.Canceled, canceledText, errorKindCanceled},
+		{"invalid", invalidf("bad shape"), http.StatusBadRequest, codes.InvalidArgument, "bad shape", errorKindInvalid},
+		{"runtime", errors.New("onnx failure"), http.StatusInternalServerError, codes.Internal, "model run failed: onnx failure", errorKindRuntime},
+		{"unimplemented", Unimplemented("load is not supported"), http.StatusNotImplemented, codes.Unimplemented, "load is not supported", errorKindUnimplemented},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			res := Status(c.err)
-			if res.HTTP != c.http || res.GRPC != c.code || res.Message != c.text {
-				t.Fatalf("got %+v, want %d %v %q", res, c.http, c.code, c.text)
+			if res.HTTP != c.http || res.GRPC != c.code || res.Message != c.text || res.ErrorKind != c.kind {
+				t.Fatalf("got %+v, want %d %v %q %q", res, c.http, c.code, c.text, c.kind)
 			}
 		})
 	}
@@ -605,7 +606,7 @@ func TestLogHasTimingAndNoTensorValues(t *testing.T) {
 		t.Fatal("slot failure was not returned")
 	}
 	log := buf.String()
-	if !strings.Contains(log, `"level":"DEBUG","msg":"batch ran"`) || !strings.Contains(log, `"level":"ERROR"`) {
+	if !strings.Contains(log, `"level":"DEBUG","msg":"batch"`) || !strings.Contains(log, `"level":"ERROR","msg":"batch"`) {
 		t.Fatalf("log is missing timing or the failure: %s", log)
 	}
 	if strings.Contains(log, "planted-secret-value") {

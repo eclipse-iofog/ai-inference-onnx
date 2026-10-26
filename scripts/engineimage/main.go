@@ -12,7 +12,6 @@ const (
 	loadingSentence   = "model is loading"
 	queueFullSentence = "request queue for this model is full"
 	libPath           = "/opt/onnxruntime/lib/libonnxruntime.so.1.31.0"
-	chainLine         = "execution providers: CPUExecutionProvider"
 	loadingWait       = 45 * time.Second
 )
 

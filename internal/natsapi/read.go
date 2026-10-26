@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/nats-io/nats.go"
 
@@ -11,8 +12,6 @@ import (
 )
 
 const (
-	serverName    = "inference"
-	serverVersion = "dev"
 	modelPlatform = "onnxruntime_onnx"
 
 	indexBodyEmpty    = "repository index body is empty"
@@ -20,16 +19,22 @@ const (
 	indexReadyNotBool = "repository index ready is not a boolean"
 )
 
-func serverDocument() serverMetadata {
+func (h *Handler) serverDocument() serverMetadata {
 	return serverMetadata{
-		Name:    serverName,
-		Version: serverVersion,
-		Extensions: []string{
-			"binary_tensor_data",
-			"model_repository",
-			"parameters",
-			"schedule_policy",
-		},
+		Name:       h.cfg.Name,
+		Version:    h.cfg.Version,
+		Extensions: serverExtensions(h.cfg.ExecutionProviders, h.cfg.ORTVersion),
+	}
+}
+
+func serverExtensions(providers []string, ortVersion string) []string {
+	return []string{
+		"binary_tensor_data",
+		"model_repository",
+		"parameters",
+		"schedule_policy",
+		"execution_providers:" + strings.Join(providers, ","),
+		"ort_version:" + ortVersion,
 	}
 }
 

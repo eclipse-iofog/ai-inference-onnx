@@ -252,8 +252,8 @@ func (u *upload) end() bool {
 func (u *upload) finish(last *nats.Msg) {
 	_ = u.sub.Unsubscribe()
 	defer u.h.buffers().Put(u.body)
-	encoded, err := u.h.execute(u.dir, u.chosen, u.body, u.header)
-	u.h.logInfer(u.model, u.chosen.Version, u.started, err)
+	encoded, id, err := u.h.execute(u.dir, u.chosen, u.body, u.header)
+	u.h.logInfer(u.model, u.chosen.Version, id, u.started, err)
 	if err != nil {
 		u.h.writeError(u.conn, last, err)
 		return
@@ -276,7 +276,7 @@ func (u *upload) abort(current *nats.Msg, reason string) {
 	_ = u.sub.Unsubscribe()
 	u.h.buffers().Put(u.body)
 	err := &batch.InvalidError{Reason: reason}
-	u.h.logInfer(u.model, u.chosen.Version, u.started, err)
+	u.h.logInfer(u.model, u.chosen.Version, "", u.started, err)
 	for _, m := range waiting {
 		if m != nil {
 			u.h.writeError(u.conn, m, err)

@@ -182,7 +182,12 @@ func TestReadyFollowsTheReadyFunction(t *testing.T) {
 func TestSmallPayloadLimitSplitsServerMetadata(t *testing.T) {
 	const limit = 96
 	url := startServer(t, limit)
-	serve(t, url, Config{})
+	serve(t, url, Config{
+		Name:               "engine-1",
+		Version:            "9.9.9",
+		ExecutionProviders: []string{"TensorrtExecutionProvider", "CUDAExecutionProvider"},
+		ORTVersion:         "1.31.0",
+	})
 	client := connect(t, url)
 	if client.MaxPayload() != limit {
 		t.Fatalf("server payload limit %d", client.MaxPayload())
@@ -205,7 +210,12 @@ func TestSmallPayloadLimitSplitsServerMetadata(t *testing.T) {
 	if err := json.Unmarshal(got.body, &doc); err != nil {
 		t.Fatalf("joined body %q: %v", got.body, err)
 	}
-	if doc.Name != "inference" || doc.Version != "dev" || !slices.Contains(doc.Extensions, "binary_tensor_data") {
+	want := []string{
+		"binary_tensor_data", "model_repository", "parameters", "schedule_policy",
+		"execution_providers:TensorrtExecutionProvider,CUDAExecutionProvider",
+		"ort_version:1.31.0",
+	}
+	if doc.Name != "engine-1" || doc.Version != "9.9.9" || !slices.Equal(doc.Extensions, want) {
 		t.Fatalf("server metadata %+v", doc)
 	}
 }

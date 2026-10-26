@@ -183,7 +183,7 @@ func TestStaticModeDoesNotApplyToNATS(t *testing.T) {
 	assertThrees(t, request(t, client, "inference.v2.models.add.infer", bearer, addJSONBody("right-token")), "right-token", false)
 
 	out := logs.String()
-	if !strings.Contains(out, `"msg":"infer finished"`) || !strings.Contains(out, `"level":"DEBUG"`) {
+	if !strings.Contains(out, `"msg":"infer"`) || !strings.Contains(out, `"level":"DEBUG"`) || !strings.Contains(out, `"transport":"nats"`) {
 		t.Fatalf("infer timing was not logged at debug:\n%s", out)
 	}
 	for _, secret := range []string{staticToken, "Bearer", "not-the-token", "[1,1,1"} {
@@ -199,7 +199,7 @@ func TestRejectedInferIsLoggedAtWarn(t *testing.T) {
 	serve(t, url, Config{Catalog: readyAdd(), Runner: &fakeRunner{err: batch.ErrQueueFull}, MaxPayloadBytes: 1 << 20, Logger: debugLogger(logs)})
 	wantStatus(t, request(t, connect(t, url), "inference.v2.models.add.infer", nil, addJSONBody("x")), 503)
 	out := logs.String()
-	if !strings.Contains(out, `"level":"WARN"`) || !strings.Contains(out, `"msg":"infer rejected"`) || !strings.Contains(out, `"status":503`) {
+	if !strings.Contains(out, `"level":"WARN"`) || !strings.Contains(out, `"msg":"infer"`) || !strings.Contains(out, `"status":503`) || !strings.Contains(out, `"error_kind":"queue_full"`) {
 		t.Fatalf("log:\n%s", out)
 	}
 }

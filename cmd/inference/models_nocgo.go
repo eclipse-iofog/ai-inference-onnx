@@ -52,6 +52,16 @@ func (m *modelRuntime) Run(_ context.Context, name, _ string, _ *batch.Request) 
 	return nil, batch.NotFound(fmt.Sprintf("model %q was not found", name))
 }
 
+// executionProviders returns no chain. This build does not load the runtime library.
+func (m *modelRuntime) executionProviders() []string {
+	return []string{}
+}
+
+// runtimeVersion returns an empty version. This build does not load the runtime library.
+func (m *modelRuntime) runtimeVersion() string {
+	return ""
+}
+
 // buffers is nil. This build has no session buffer pool.
 func (m *modelRuntime) buffers() batch.Pool {
 	return nil

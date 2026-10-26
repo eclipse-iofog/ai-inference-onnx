@@ -101,9 +101,12 @@ type engineBody struct {
 	NodeUnknown        bool
 	Application        string
 	ApplicationUnknown bool
-	Live               string
-	Ready              string
-	NATS               string
+	Live               bool
+	Ready              bool
+	NATS               bool
+	Runtime            string
+	RuntimeKnown       bool
+	Providers          []string
 	Stats              []statView
 	Filters            []filterChip
 	Charts             []chartView
@@ -178,7 +181,7 @@ func Nodes(w io.Writer, snapshots *store.Store, conn Connection) error {
 }
 
 // Models writes the models view.
-// One model name is one row. Rate and latency use the newest interval on each engine.
+// One model name is one row. Rate and latency use the last 15 minutes on each engine.
 func Models(w io.Writer, snapshots *store.Store, conn Connection) error {
 	rows := snapshots.Models()
 	engines := snapshots.Engines()
@@ -301,9 +304,12 @@ func bodyFrom(eng store.Engine, model string) engineBody {
 		NodeUnknown:        nodeUnknown,
 		Application:        application,
 		ApplicationUnknown: applicationUnknown,
-		Live:               yesNo(eng.Live),
-		Ready:              yesNo(eng.Ready),
-		NATS:               yesNo(eng.NATSConnected),
+		Live:               eng.Live,
+		Ready:              eng.Ready,
+		NATS:               eng.NATSConnected,
+		Runtime:            eng.ORTVersion,
+		RuntimeKnown:       eng.ORTVersion != "",
+		Providers:          eng.ExecutionProviders,
 		Stats: []statView{
 			statFrom("Requests/s", folded.requests),
 			statFrom("Error", folded.errors),
@@ -355,21 +361,15 @@ func bodyFrom(eng store.Engine, model string) engineBody {
 
 func versionReading(samples []store.Sample, name, version string) (reading, reading, reading, reading) {
 	unknown := unknownReading()
-	st, ok := latestStep(samples, name)
-	if !ok {
+	sum, status := windowOf(samples, name, version)
+	if status != windowOK {
 		return unknown, unknown, unknown, unknown
 	}
-	for _, vs := range st.versions {
-		if vs.name != name || vs.version != version || !vs.ok {
-			continue
-		}
-		seconds := st.dt.Seconds()
-		return rateReading(float64(vs.success+vs.fail)/seconds, seconds > 0),
-			msReading(vs.request, vs.success),
-			msReading(vs.queue, vs.success),
-			msReading(vs.compute, vs.success)
-	}
-	return unknown, unknown, unknown, unknown
+	seconds := sum.elapsed.Seconds()
+	return rateReading(float64(sum.requests)/seconds, seconds > 0),
+		msReading(sum.request, sum.success),
+		msReading(sum.queue, sum.success),
+		msReading(sum.compute, sum.success)
 }
 
 func statFrom(label string, item reading) statView {
@@ -410,13 +410,6 @@ func knownText(value string) (string, bool) {
 		return "unknown", true
 	}
 	return value, false
-}
-
-func yesNo(value bool) string {
-	if value {
-		return "yes"
-	}
-	return "no"
 }
 
 func stateClass(state string) string {

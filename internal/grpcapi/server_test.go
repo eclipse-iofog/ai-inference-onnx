@@ -1,11 +1,13 @@
 package grpcapi
 
 import (
+	"bytes"
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"log/slog"
 	"net"
 	"os"
 	"path/filepath"
@@ -365,6 +367,30 @@ func writePublicJWK(t *testing.T, path string, public ed25519.PublicKey) {
 	}
 	if err := os.WriteFile(path, raw, 0o600); err != nil {
 		t.Fatalf("write key: %v", err)
+	}
+}
+
+func TestAuthDenialIsLogged(t *testing.T) {
+	t.Parallel()
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&buf, nil))
+	checker := mustChecker(t, config.Config{AuthMode: config.AuthStatic, AuthStaticToken: staticToken}, "")
+	srv := New(checker, func() bool { return true })
+	srv.RegisterInfer(InferConfig{Logger: logger, MaxPayloadBytes: 1 << 20})
+	client := dialServer(t, srv)
+
+	if _, err := client.ServerLive(callCtx(t), &openinference.ServerLiveRequest{}); err != nil {
+		t.Fatal(err)
+	}
+	_, err := client.ModelInfer(withAuth(callCtx(t), "Bearer "+badStaticToken), &openinference.ModelInferRequest{ModelName: "demo"})
+	assertStatus(t, err, codes.Unauthenticated, "unauthenticated", staticToken, badStaticToken)
+
+	out := buf.String()
+	if strings.Contains(out, staticToken) || strings.Contains(out, badStaticToken) || strings.Contains(out, "Bearer") {
+		t.Fatalf("log contains a credential:\n%s", out)
+	}
+	if strings.Count(out, `"msg":"auth"`) != 1 || !strings.Contains(out, `"decision":"unauthenticated"`) || !strings.Contains(out, `"model":"demo"`) || !strings.Contains(out, `"transport":"grpc"`) {
+		t.Fatalf("auth log %s", out)
 	}
 }
 

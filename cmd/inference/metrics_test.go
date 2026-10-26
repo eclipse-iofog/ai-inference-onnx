@@ -58,13 +58,13 @@ func TestMetricsScrape(t *testing.T) {
 		t.Fatalf("http port served the scrape:\n%s", body)
 	}
 
-	stdout := waitLog(t, proc, "metrics listener is up")
+	stdout := waitLog(t, proc, `"transport":"metrics"`)
 	var metricsUp bool
 	for _, line := range decodeLog(t, stdout) {
 		if strings.Contains(strings.ToLower(line.Msg), "nats") {
 			t.Fatalf("nats log line %+v", line)
 		}
-		if line.Msg == "metrics listener is up" {
+		if line.Msg == "listener" && line.Transport == "metrics" {
 			if !strings.EqualFold(line.Level, "info") {
 				t.Fatalf("metrics listener line %+v", line)
 			}
@@ -137,7 +137,13 @@ func TestMetricsPortTakenExits(t *testing.T) {
 		t.Fatalf("listener started\n%s", out)
 	}
 	lines := decodeLog(t, proc.stdout.String())
-	if len(lines) == 0 || !strings.EqualFold(lines[0].Level, "error") {
+	var listenError bool
+	for _, line := range lines {
+		if strings.EqualFold(line.Level, "error") && line.Msg == "listen" {
+			listenError = true
+		}
+	}
+	if !listenError {
 		t.Fatalf("listen log %+v", lines)
 	}
 	if strings.TrimSpace(proc.stderr.String()) != "" {

@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -63,15 +64,17 @@ func TestEmptyRepositoryReadRoutes(t *testing.T) {
 	t.Parallel()
 	ports := pickPorts(t)
 	proc := startProcess(t, processEnv(t, ports, map[string]string{
-		"AUTH_MODE": "disabled",
+		"AUTH_MODE":        "disabled",
+		"ENGINE_SERVER_ID": "engine-1",
 	}))
 	t.Cleanup(proc.kill)
 	waitLive(t, ports.http)
 
 	status, body := get(t, ports.http, "/v2")
-	if status != http.StatusOK || string(body) != `{"name":"inference","version":"dev","extensions":["binary_tensor_data","model_repository","parameters","schedule_policy"]}` {
+	if status != http.StatusOK || string(body) != `{"name":"engine-1","version":"test-version","extensions":["binary_tensor_data","model_repository","parameters","schedule_policy","execution_providers:","ort_version:"]}` {
 		t.Fatalf("metadata %d %s", status, body)
 	}
+	assertGRPCServerMetadata(t, ports.grpc, "engine-1", "test-version", "execution_providers:", "ort_version:")
 	status, body = get(t, ports.http, "/v2/models")
 	if status != http.StatusOK || string(body) != `{"models":[]}` {
 		t.Fatalf("list %d %s", status, body)
@@ -165,7 +168,7 @@ func TestStaticTokenAbsentFromLiveLog(t *testing.T) {
 	if status != http.StatusOK || len(body) != 0 {
 		t.Fatalf("live status %d body %q", status, body)
 	}
-	stdout := waitLog(t, proc, "grpc listener is up")
+	stdout := waitLog(t, proc, `"transport":"grpc"`)
 	if strings.Contains(stdout, token) || strings.Contains(proc.stderr.String(), token) {
 		t.Fatalf("logs contain the token:\n%s%s", stdout, proc.stderr.String())
 	}
@@ -174,7 +177,7 @@ func TestStaticTokenAbsentFromLiveLog(t *testing.T) {
 	}
 	var listeners int
 	for _, line := range decodeLog(t, stdout) {
-		if strings.EqualFold(line.Level, "info") && strings.Contains(line.Msg, "listener is up") {
+		if strings.EqualFold(line.Level, "info") && line.Msg == "listener" {
 			listeners++
 		}
 	}
@@ -488,6 +491,41 @@ func assertGRPCInferMissing(t *testing.T, port int) {
 	}
 }
 
+func assertGRPCServerMetadata(t *testing.T, port int, name, version string, extensions ...string) {
+	t.Helper()
+	conn, err := grpc.NewClient(
+		hostPort(port),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		t.Fatalf("dial grpc: %v", err)
+	}
+	defer func() {
+		if err := conn.Close(); err != nil {
+			t.Errorf("close grpc: %v", err)
+		}
+	}()
+	client := openinference.NewGRPCInferenceServiceClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	resp, err := client.ServerMetadata(ctx, &openinference.ServerMetadataRequest{})
+	if err != nil {
+		t.Fatalf("server metadata: %v", err)
+	}
+	if resp.GetName() != name || resp.GetVersion() != version {
+		t.Fatalf("metadata name %q version %q", resp.GetName(), resp.GetVersion())
+	}
+	want := append([]string{
+		"binary_tensor_data",
+		"model_repository",
+		"parameters",
+		"schedule_policy",
+	}, extensions...)
+	if !slices.Equal(resp.GetExtensions(), want) {
+		t.Fatalf("extensions %v", resp.GetExtensions())
+	}
+}
+
 func assertGRPCHealth(t *testing.T, port int, readyWant bool) {
 	t.Helper()
 	conn, err := grpc.NewClient(
@@ -637,7 +675,9 @@ func inferenceBinary(t *testing.T) string {
 			binaryErr = fmt.Errorf("CGO_ENABLED=%q", strings.TrimSpace(string(got)))
 			return
 		}
-		cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+		cmd := exec.Command("go", "build",
+			"-ldflags", "-X github.com/eclipse-iofog/ai-inference-onnx/internal/buildinfo.Version=test-version",
+			"-o", binaryPath, ".")
 		cmd.Env = env
 		out, err := cmd.CombinedOutput()
 		if err != nil {

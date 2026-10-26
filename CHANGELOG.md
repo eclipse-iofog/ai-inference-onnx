@@ -5,6 +5,27 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.1.0-rc.4]
+
+### Added
+
+- Server metadata extensions include the execution provider chain and the ONNX Runtime version, on REST, gRPC, and NATS. A CPU image reports `execution_providers:CPUExecutionProvider` and `ort_version:1.31.0`. The metrics snapshot carries the same facts as `execution_providers` and `ort_version`. An empty chain and an empty version mean the runtime library did not load.
+
+### Changed
+
+- Server metadata `name` is the server id. `version` is the engine version linked into the image, or `dev` when the binary was built without one.
+- The engine writes one JSON event per line. After settings load, every line includes `service` and `server_id`. Infer on HTTP, gRPC, and NATS shares one record: transport, model, version, request id, status, and duration. The log also records startup settings, an unavailable model and its reason, each denied REST or gRPC call, and a metrics publish that failed. A successful infer stays at debug. Tokens, credentials, and tensor values stay out of the log.
+
+## [dashboard/v0.1.0-rc.4]
+
+### Changed
+
+- Nodes, Models, and the engine summary use the last 15 minutes. A quiet latest snapshot no longer clears the rate, the error percentage, or the latency.
+- The request-rate graph uses green for success and red for failure. Model lines use a separate palette and are labeled `name:version`.
+- Queue depth is one cell in the graph grid. Model cards sit side by side, at most four on a row. The model name is the card title, and the version is a badge under it.
+- Live, Ready, and NATS connected are badges. Success and each failure reason on a model card are badges.
+- The engine view shows the ONNX Runtime version and the execution provider chain from the snapshot, each as a badge. An empty version or an empty chain is unknown.
+
 ## [dashboard/v0.1.0-rc.3]
 
 ### Added

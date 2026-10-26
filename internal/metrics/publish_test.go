@@ -1,9 +1,13 @@
 package metrics
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
+	"slices"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -26,6 +30,9 @@ func TestPublisherTickAndStateChange(t *testing.T) {
 	doc := decodeDoc(t, first.body)
 	if doc.Schema != 1 || !doc.Live || !doc.Ready || !doc.NATSConnected || doc.ServerID != "engine-1" {
 		t.Fatalf("document %+v", doc)
+	}
+	if doc.ORTVersion != "1.31.0" || !slices.Equal(doc.ExecutionProviders, []string{"CPUExecutionProvider"}) {
+		t.Fatalf("runtime providers %v version %q", doc.ExecutionProviders, doc.ORTVersion)
 	}
 	if len(doc.Models) != 1 || doc.Models[0].Success != 1 || doc.Models[0].Model != "add" {
 		t.Fatalf("models %+v", doc.Models)
@@ -114,6 +121,49 @@ func TestPublisherDropsAFailedPublish(t *testing.T) {
 	h.refuseExtra(t)
 }
 
+func TestPublisherWarnsOncePerInterval(t *testing.T) {
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&buf, nil))
+	reg := New()
+	var fail atomic.Bool
+	fail.Store(true)
+	connected := true
+	p := NewPublisher(PublisherConfig{
+		Registry:  reg,
+		ServerID:  "engine-1",
+		Interval:  time.Hour,
+		Connected: func() bool { return connected },
+		Publish: func(string, []byte) error {
+			if fail.Load() {
+				return errors.New("leaf refused")
+			}
+			return nil
+		},
+		Logger: logger,
+	})
+
+	p.publishModels(nil)
+	p.publishModels(nil)
+	if strings.Count(buf.String(), `"msg":"metrics"`) != 1 || !strings.Contains(buf.String(), "leaf refused") {
+		t.Fatalf("first failures:\n%s", buf.String())
+	}
+
+	connected = false
+	p.publishModels(nil)
+	if strings.Count(buf.String(), `"msg":"metrics"`) != 1 {
+		t.Fatalf("a disconnected leaf logged a failure:\n%s", buf.String())
+	}
+	connected = true
+
+	fail.Store(false)
+	p.publishModels(nil)
+	fail.Store(true)
+	p.publishModels(nil)
+	if strings.Count(buf.String(), `"msg":"metrics"`) != 2 {
+		t.Fatalf("after a success:\n%s", buf.String())
+	}
+}
+
 func TestPublisherReadyFollowsThePredicate(t *testing.T) {
 	reg := New()
 	h := newHarness(reg)
@@ -172,11 +222,13 @@ func (h *harness) start() {
 	ctx, cancel := context.WithCancel(context.Background())
 	h.cancel = cancel
 	go NewPublisher(PublisherConfig{
-		Registry: h.reg,
-		ServerID: "engine-1",
-		Interval: time.Hour,
-		Live:     func() bool { return true },
-		Ready:    func() bool { return h.ready.Load() },
+		Registry:           h.reg,
+		ServerID:           "engine-1",
+		Interval:           time.Hour,
+		ExecutionProviders: []string{"CPUExecutionProvider"},
+		ORTVersion:         "1.31.0",
+		Live:               func() bool { return true },
+		Ready:              func() bool { return h.ready.Load() },
 		Connected: func() bool {
 			return h.connected.Load()
 		},

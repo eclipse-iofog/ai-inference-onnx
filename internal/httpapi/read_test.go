@@ -16,6 +16,7 @@ import (
 func TestServerMetadata(t *testing.T) {
 	t.Parallel()
 	srv := readServer(t, disabledChecker(t), nil)
+	srv.SetIdentity("engine-1", "9.9.9")
 	rec := call(t, srv, http.MethodGet, "/v2", "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status %d body %s", rec.Code, rec.Body.String())
@@ -25,15 +26,39 @@ func TestServerMetadata(t *testing.T) {
 	}
 	var doc serverMetadata
 	decodeJSON(t, rec.Body.Bytes(), &doc)
-	if doc.Name != "inference" || doc.Version != "dev" {
+	if doc.Name != "engine-1" || doc.Version != "9.9.9" {
 		t.Fatalf("metadata %+v", doc)
 	}
-	want := []string{"binary_tensor_data", "model_repository", "parameters", "schedule_policy"}
+	want := []string{
+		"binary_tensor_data", "model_repository", "parameters", "schedule_policy",
+		"execution_providers:", "ort_version:",
+	}
 	if !slices.Equal(doc.Extensions, want) {
 		t.Fatalf("extensions %v", doc.Extensions)
 	}
 	if strings.Contains(rec.Body.String(), "unload_dependents") {
 		t.Fatalf("body %s", rec.Body.String())
+	}
+}
+
+func TestServerMetadataReportsRuntime(t *testing.T) {
+	t.Parallel()
+	srv := readServer(t, disabledChecker(t), nil)
+	srv.SetIdentity("engine-1", "9.9.9")
+	srv.SetRuntime([]string{"TensorrtExecutionProvider", "CUDAExecutionProvider"}, "1.31.0")
+	rec := call(t, srv, http.MethodGet, "/v2", "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d body %s", rec.Code, rec.Body.String())
+	}
+	var doc serverMetadata
+	decodeJSON(t, rec.Body.Bytes(), &doc)
+	want := []string{
+		"binary_tensor_data", "model_repository", "parameters", "schedule_policy",
+		"execution_providers:TensorrtExecutionProvider,CUDAExecutionProvider",
+		"ort_version:1.31.0",
+	}
+	if !slices.Equal(doc.Extensions, want) {
+		t.Fatalf("extensions %v", doc.Extensions)
 	}
 }
 

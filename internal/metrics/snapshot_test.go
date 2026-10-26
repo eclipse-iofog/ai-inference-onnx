@@ -44,6 +44,9 @@ func TestSnapshotSchema(t *testing.T) {
 	if string(raw["live"]) != "true" || string(raw["ready"]) != "true" || string(raw["nats_connected"]) != "true" {
 		t.Fatalf("flags live %s ready %s nats %s", raw["live"], raw["ready"], raw["nats_connected"])
 	}
+	if string(raw["execution_providers"]) != "[]" || string(raw["ort_version"]) != `""` {
+		t.Fatalf("providers %s version %s", raw["execution_providers"], raw["ort_version"])
+	}
 	for _, absent := range []string{"microservice_name", "node_uid", "application_name", "inputs", "outputs", "process_resident_memory_bytes"} {
 		if _, ok := raw[absent]; ok {
 			t.Fatalf("field %s is present", absent)
@@ -89,6 +92,9 @@ func TestSnapshotEmptyModels(t *testing.T) {
 	if string(raw["ready"]) != "false" || string(raw["nats_connected"]) != "false" || string(raw["live"]) != "true" {
 		t.Fatalf("flags %+v", raw)
 	}
+	if string(raw["execution_providers"]) != "[]" || string(raw["ort_version"]) != `""` {
+		t.Fatalf("providers %s version %s", raw["execution_providers"], raw["ort_version"])
+	}
 	if _, ok := raw["microservice_name"]; ok {
 		t.Fatal("an unset name is present")
 	}
@@ -106,6 +112,24 @@ func TestSnapshotEdgeletNames(t *testing.T) {
 	raw := decodeObject(t, body)
 	if string(raw["microservice_name"]) != `"vision"` || string(raw["node_uid"]) != `"node-1"` || string(raw["application_name"]) != `"factory"` {
 		t.Fatalf("names microservice %s node %s application %s", raw["microservice_name"], raw["node_uid"], raw["application_name"])
+	}
+}
+
+func TestSnapshotReportsRuntime(t *testing.T) {
+	reg := New()
+	body := mustSnapshot(t, reg, SnapshotMeta{
+		ServerID:           "engine-1",
+		Live:               true,
+		ExecutionProviders: []string{"TensorrtExecutionProvider", "CUDAExecutionProvider"},
+		ORTVersion:         "1.31.0",
+	})
+	raw := decodeObject(t, body)
+	if string(raw["execution_providers"]) != `["TensorrtExecutionProvider","CUDAExecutionProvider"]` || string(raw["ort_version"]) != `"1.31.0"` {
+		t.Fatalf("providers %s version %s", raw["execution_providers"], raw["ort_version"])
+	}
+	text := scrape(t, reg)
+	if strings.Contains(text, "TensorrtExecutionProvider") || strings.Contains(text, "ort_version") || strings.Contains(text, "execution_providers") || strings.Contains(text, "1.31.0") {
+		t.Fatalf("prometheus text carries the runtime:\n%s", text)
 	}
 }
 

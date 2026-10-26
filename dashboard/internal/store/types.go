@@ -126,6 +126,12 @@ type Engine struct {
 	Ready bool
 	// NATSConnected is true when the newest snapshot says the leaf is connected.
 	NATSConnected bool
+	// ExecutionProviders is the provider chain on the newest snapshot, in the order the process appended it.
+	// Empty means that snapshot did not name a provider.
+	ExecutionProviders []string
+	// ORTVersion is the ONNX Runtime version on the newest snapshot.
+	// Empty means that snapshot did not name a version.
+	ORTVersion string
 	// Models is the newest snapshot's model list, ordered by name and then by version.
 	Models []Model
 	// Samples are kept snapshots, oldest first.

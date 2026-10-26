@@ -15,19 +15,46 @@ import (
 
 func TestServerMetadata(t *testing.T) {
 	t.Parallel()
-	client := startReads(t, disabledChecker(t), nil)
+	srv := New(disabledChecker(t), func() bool { return false })
+	srv.SetIdentity("engine-1", "9.9.9")
+	srv.RegisterReads(directoryCatalog{})
+	client := dialServer(t, srv)
 	resp, err := client.ServerMetadata(callCtx(t), &openinference.ServerMetadataRequest{})
 	if status.Code(err) != codes.OK {
 		t.Fatalf("metadata: %v", err)
 	}
-	if resp.GetName() != "inference" || resp.GetVersion() != "dev" {
+	if resp.GetName() != "engine-1" || resp.GetVersion() != "9.9.9" {
 		t.Fatalf("metadata name %q version %q", resp.GetName(), resp.GetVersion())
 	}
-	want := []string{"binary_tensor_data", "model_repository", "parameters", "schedule_policy"}
+	want := []string{
+		"binary_tensor_data", "model_repository", "parameters", "schedule_policy",
+		"execution_providers:", "ort_version:",
+	}
 	if !slices.Equal(resp.GetExtensions(), want) {
 		t.Fatalf("extensions %v", resp.GetExtensions())
 	}
 	if slices.Contains(resp.GetExtensions(), "model_repository(unload_dependents)") {
+		t.Fatalf("extensions %v", resp.GetExtensions())
+	}
+}
+
+func TestServerMetadataReportsRuntime(t *testing.T) {
+	t.Parallel()
+	srv := New(disabledChecker(t), func() bool { return false })
+	srv.SetIdentity("engine-1", "9.9.9")
+	srv.SetRuntime([]string{"TensorrtExecutionProvider", "CUDAExecutionProvider"}, "1.31.0")
+	srv.RegisterReads(directoryCatalog{})
+	client := dialServer(t, srv)
+	resp, err := client.ServerMetadata(callCtx(t), &openinference.ServerMetadataRequest{})
+	if status.Code(err) != codes.OK {
+		t.Fatalf("metadata: %v", err)
+	}
+	want := []string{
+		"binary_tensor_data", "model_repository", "parameters", "schedule_policy",
+		"execution_providers:TensorrtExecutionProvider,CUDAExecutionProvider",
+		"ort_version:1.31.0",
+	}
+	if !slices.Equal(resp.GetExtensions(), want) {
 		t.Fatalf("extensions %v", resp.GetExtensions())
 	}
 }

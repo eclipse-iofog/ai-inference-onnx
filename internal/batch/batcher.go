@@ -50,8 +50,9 @@ type Config struct {
 	Clock Clock
 	// Slot runs one batch.
 	Slot Slot
-	// Logger records batch timing at debug and failed runs at error. Nil logs nothing.
-	// The caller's outcome is logged by the transport that wrote it.
+	// Logger records one batch at debug when it finishes and at the outcome level when the run fails.
+	// A finished line includes queue wait and run time in microseconds, and any caller request ids.
+	// Nil logs nothing. The caller's outcome is logged by the transport that wrote it.
 	Logger *slog.Logger
 	// Recorder counts each finished request and how many are waiting.
 	// Nil counts nothing.
@@ -88,6 +89,7 @@ func (r *Reply) Release() {
 
 type waiter struct {
 	ctx     context.Context
+	id      string
 	inputs  []Tensor
 	rows    int64
 	arrival time.Time
@@ -151,7 +153,7 @@ func (b *Batcher) Infer(ctx context.Context, req *Request) (*Reply, error) {
 		b.refuse(err)
 		return nil, err
 	}
-	w := &waiter{ctx: ctx, inputs: req.Inputs, rows: rows, done: make(chan outcome, 1)}
+	w := &waiter{ctx: ctx, id: cutRequestID(req.ID), inputs: req.Inputs, rows: rows, done: make(chan outcome, 1)}
 
 	b.mu.Lock()
 	if len(b.queue) >= b.cfg.Capacity {
@@ -533,27 +535,48 @@ func mergedContext(live []*waiter) (context.Context, func()) {
 	}
 }
 
-func (b *Batcher) logRun(start time.Time, batch []*waiter, err error) {
-	if b.cfg.Logger == nil {
+func (b *Batcher) logRun(start time.Time, ran []*waiter, err error) {
+	if b.cfg.Logger == nil || len(ran) == 0 {
 		return
 	}
+	ctx := ran[0].ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	k := b.cfg.Key
+	attrs := []any{
+		"model", k.Model,
+		"version", k.Version,
+		"requests", len(ran),
+	}
+	if ids := requestIDs(ran); len(ids) > 0 {
+		attrs = append(attrs, "id", ids)
+	}
 	if err != nil {
 		result := Status(err)
-		b.cfg.Logger.Log(context.Background(), result.Level, "model run did not finish",
-			"model", k.Model, "version", k.Version, "requests", len(batch), "error", result.Message)
+		attrs = append(attrs, "error", result.Message, "error_kind", result.ErrorKind)
+		b.cfg.Logger.Log(ctx, result.Level, "batch", attrs...)
 		return
 	}
 	var rows int64
-	for _, w := range batch {
+	for _, w := range ran {
 		rows += max(w.rows, 0)
 	}
-	b.cfg.Logger.Debug("batch ran",
-		"model", k.Model,
-		"version", k.Version,
-		"requests", len(batch),
+	now := b.cfg.Clock.Now()
+	attrs = append(attrs,
 		"rows", rows,
-		"queue_wait", start.Sub(batch[0].arrival).String(),
-		"run", b.cfg.Clock.Now().Sub(start).String(),
+		"queue_wait_us", start.Sub(ran[0].arrival).Microseconds(),
+		"run_us", now.Sub(start).Microseconds(),
 	)
+	b.cfg.Logger.DebugContext(ctx, "batch", attrs...)
+}
+
+func requestIDs(ran []*waiter) []string {
+	var ids []string
+	for _, w := range ran {
+		if w.id != "" {
+			ids = append(ids, w.id)
+		}
+	}
+	return ids
 }

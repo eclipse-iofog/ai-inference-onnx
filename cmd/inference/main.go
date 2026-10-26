@@ -9,6 +9,7 @@
 // When the runtime library is available, model sessions start from the model and knowledge directories.
 // A signal stops listeners, closes those sessions, and then releases the runtime.
 // The process writes one JSON log to standard output.
+// After settings load, each line names this process and its server id.
 package main
 
 import (
@@ -28,6 +29,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/eclipse-iofog/ai-inference-onnx/internal/auth"
+	"github.com/eclipse-iofog/ai-inference-onnx/internal/buildinfo"
 	"github.com/eclipse-iofog/ai-inference-onnx/internal/config"
 	"github.com/eclipse-iofog/ai-inference-onnx/internal/grpcapi"
 	"github.com/eclipse-iofog/ai-inference-onnx/internal/httpapi"
@@ -49,28 +51,31 @@ func main() {
 }
 
 func run() int {
-	logger := newLogger(os.Stdout, "info")
+	logger := newLogger(os.Stdout, "info").With("service", serviceName)
 	cfg, err := config.Load()
 	if err != nil {
-		logger.Error(fmt.Sprintf("configuration: %v", err))
+		logger.Error("configuration", "error", err)
 		return 1
 	}
-	logger = newLogger(os.Stdout, cfg.LogLevel)
+	logger = newLogger(os.Stdout, cfg.LogLevel).With("service", serviceName, "server_id", cfg.ServerID)
 	checker, err := auth.New(cfg, "")
 	if err != nil {
-		logger.Error(fmt.Sprintf("authentication: %v", err))
+		logger.Error("authentication", "error", err)
 		return 1
 	}
 	tlsConfig, err := loadListenerTLS(cfg)
 	if err != nil {
-		logger.Error(fmt.Sprintf("configuration: %v", err))
+		logger.Error("configuration", "error", err)
 		return 1
 	}
+	logStart(logger, cfg)
 
 	// notes receives a copy of the model list after a state is stored.
 	notes := make(chan []metrics.ModelState, 16)
 	models := startModels(cfg, logger, notes)
 	api := httpapi.New(checker, models.ready)
+	api.SetIdentity(cfg.ServerID, buildinfo.Version)
+	api.SetRuntime(models.executionProviders(), models.runtimeVersion())
 	api.RegisterReads(models)
 	api.RegisterInfer(httpapi.InferConfig{
 		Catalog:         models,
@@ -84,6 +89,8 @@ func run() int {
 		ErrorLog:          httpErrorLog(logger),
 	}
 	grpcServer := newGRPCServer(checker, models.ready, tlsConfig)
+	grpcServer.SetIdentity(cfg.ServerID, buildinfo.Version)
+	grpcServer.SetRuntime(models.executionProviders(), models.runtimeVersion())
 	grpcServer.RegisterReads(models)
 	grpcServer.RegisterInfer(grpcapi.InferConfig{
 		Catalog:         models,
@@ -104,15 +111,15 @@ func run() int {
 
 	httpLn, grpcLn, metricsLn, err := listen(cfg)
 	if err != nil {
-		logger.Error(fmt.Sprintf("listen: %v", err))
+		logger.Error("listen", "error", err)
 		if stopErr := models.shutdown(); stopErr != nil {
-			logger.Error(fmt.Sprintf("stop: %v", stopErr))
+			logger.Error("stop", "error", stopErr)
 		}
 		return 1
 	}
-	logger.Info("http listener is up", "addr", httpLn.Addr().String())
-	logger.Info("grpc listener is up", "addr", grpcLn.Addr().String())
-	logger.Info("metrics listener is up", "addr", metricsLn.Addr().String())
+	logger.Info("listener", "transport", "http", "addr", httpLn.Addr().String())
+	logger.Info("listener", "transport", "grpc", "addr", grpcLn.Addr().String())
+	logger.Info("listener", "transport", "metrics", "addr", metricsLn.Addr().String())
 
 	natsCtx, cancelNATS := context.WithCancel(context.Background())
 	defer cancelNATS()
@@ -120,20 +127,23 @@ func run() int {
 	defer cancelSnap()
 	var leaf atomic.Pointer[natsapi.Listener]
 	go metrics.NewPublisher(metrics.PublisherConfig{
-		Registry:         registry,
-		Interval:         cfg.MetricsInterval,
-		ServerID:         cfg.ServerID,
-		MicroserviceName: cfg.MicroserviceName,
-		NodeUID:          cfg.NodeUID,
-		ApplicationName:  cfg.ApplicationName,
-		Live:             func() bool { return true },
-		Ready:            models.ready,
-		Connected:        func() bool { return leaf.Load().Connected() },
+		Registry:           registry,
+		Interval:           cfg.MetricsInterval,
+		ServerID:           cfg.ServerID,
+		MicroserviceName:   cfg.MicroserviceName,
+		NodeUID:            cfg.NodeUID,
+		ApplicationName:    cfg.ApplicationName,
+		ExecutionProviders: models.executionProviders(),
+		ORTVersion:         models.runtimeVersion(),
+		Live:               func() bool { return true },
+		Ready:              models.ready,
+		Connected:          func() bool { return leaf.Load().Connected() },
 		Publish: func(subject string, body []byte) error {
 			return leaf.Load().Publish(subject, body)
 		},
 		Models: models.modelStates,
 		Notes:  notes,
+		Logger: logger,
 	}).Run(snapCtx)
 	bus := startNATS(natsCtx, cfg, models, logger)
 	leaf.Store(bus)
@@ -161,12 +171,20 @@ func run() int {
 
 	select {
 	case <-signals:
-		return stopAll()
+		logger.Info("stopping")
+		code := stopAll()
+		if code == 0 {
+			logger.Info("stopped")
+		}
+		return code
 	case err := <-errCh:
 		code := stopAll()
 		if err != nil {
-			logger.Error(fmt.Sprintf("serve: %v", err))
+			logger.Error("serve", "error", err)
 			return 1
+		}
+		if code == 0 {
+			logger.Info("stopped")
 		}
 		return code
 	}
@@ -180,7 +198,7 @@ func finish(logger *slog.Logger, httpServer *http.Server, metricsServer *http.Se
 		err = errors.Join(err, modelsErr)
 	}
 	if err != nil {
-		logger.Error(fmt.Sprintf("stop: %v", err))
+		logger.Error("stop", "error", err)
 		return 1
 	}
 	return 0

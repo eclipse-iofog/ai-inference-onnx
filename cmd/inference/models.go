@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"strings"
 	"sync"
 	"time"
 
@@ -27,11 +26,12 @@ var (
 
 // modelRuntime is the set of models loaded for this process.
 type modelRuntime struct {
-	repo      *session.Repository
-	watcher   *session.Watcher
-	started   bool
-	providers []ort.Provider
-	queues    inferQueues
+	repo       *session.Repository
+	watcher    *session.Watcher
+	started    bool
+	providers  []ort.Provider
+	ortVersion string
+	queues     inferQueues
 
 	mu    sync.Mutex
 	notes chan<- []metrics.ModelState
@@ -45,25 +45,30 @@ type modelRuntime struct {
 // notes receives a copy of the model list after the load and after each later state change.
 func startModels(cfg config.Config, logger *slog.Logger, notes chan<- []metrics.ModelState) *modelRuntime {
 	if err := ort.Init(); err != nil {
-		logger.Error(fmt.Sprintf("runtime: %v", err))
+		logger.Error("runtime", "error", err)
 		return &modelRuntime{}
 	}
 	running := &modelRuntime{started: true}
+	version, err := ort.GetVersion()
+	if err != nil {
+		logger.Warn("runtime", "error", err)
+	}
+	running.ortVersion = version
 	available, err := ort.AvailableProviders()
 	if err != nil {
-		logger.Error(fmt.Sprintf("runtime: %v", err))
+		logger.Error("runtime", "error", err)
 		return running
 	}
 	cacheRoot, err := os.UserCacheDir()
 	if err != nil {
-		logger.Warn(fmt.Sprintf("user cache directory: %v", err))
+		logger.Warn("cache", "error", err)
 		cacheRoot = ""
 	}
 	running.providers = ort.SelectProviders(available, cacheRoot)
-	logExecutionProviders(logger, running.providers)
+	logRuntime(logger, running.ortVersion, running.providers)
 	repo, pool, err := openRepository(cfg, logger, running)
 	if err != nil {
-		logger.Error(fmt.Sprintf("models: %v", err))
+		logger.Error("models", "error", err)
 		return running
 	}
 	running.repo = repo
@@ -78,7 +83,7 @@ func startModels(cfg config.Config, logger *slog.Logger, notes chan<- []metrics.
 	running.emit(notes)
 	watcher, err := watchRepository(cfg, repo, running.providers)
 	if err != nil {
-		logger.Error(fmt.Sprintf("watch: %v", err))
+		logger.Error("watch", "error", err)
 		return running
 	}
 	running.watcher = watcher
@@ -92,7 +97,7 @@ func openRepository(cfg config.Config, logger *slog.Logger, running *modelRuntim
 	}
 	sessCfg := sessionConfig(cfg, running.providers)
 	sessCfg.OnState = func(name string, state session.State, models []session.CatalogModel) {
-		logModelState(logger, name, state)
+		logModelState(logger, name, state, models)
 		running.forward(models)
 	}
 	repo, err := session.Load(sessCfg, pool)
@@ -182,7 +187,29 @@ func sessionConfig(cfg config.Config, providers []ort.Provider) session.Config {
 	}
 }
 
-func logExecutionProviders(logger *slog.Logger, providers []ort.Provider) {
+// executionProviders returns the provider chain in append order.
+// An empty list means the runtime library did not load.
+func (m *modelRuntime) executionProviders() []string {
+	if m == nil || len(m.providers) == 0 {
+		return []string{}
+	}
+	names := make([]string, len(m.providers))
+	for i, provider := range m.providers {
+		names[i] = provider.Name
+	}
+	return names
+}
+
+// runtimeVersion returns the loaded ONNX Runtime version.
+// Empty means the runtime library did not load.
+func (m *modelRuntime) runtimeVersion() string {
+	if m == nil {
+		return ""
+	}
+	return m.ortVersion
+}
+
+func logRuntime(logger *slog.Logger, version string, providers []ort.Provider) {
 	if logger == nil {
 		return
 	}
@@ -190,7 +217,7 @@ func logExecutionProviders(logger *slog.Logger, providers []ort.Provider) {
 	for i, provider := range providers {
 		names[i] = provider.Name
 	}
-	logger.Info("execution providers: " + strings.Join(names, ", "))
+	logger.Info("runtime", "version", version, "providers", names)
 }
 
 func directory(path string) bool {

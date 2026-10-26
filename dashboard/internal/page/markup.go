@@ -22,14 +22,18 @@ const stylesheet = `:root {
   --unavailable: #DC2626;
   --stale: #7A3BFF;
   --unknown: #9CA3AF;
-  --series-0: #38bdf8;
-  --series-1: #f87171;
-  --series-2: #34d399;
-  --series-3: #fbbf24;
-  --series-4: #a78bfa;
-  --series-5: #fb923c;
-  --series-6: #22d3ee;
-  --series-7: #e879f9;
+  --model-0: #38bdf8;
+  --model-1: #fbbf24;
+  --model-2: #a78bfa;
+  --model-3: #fb923c;
+  --model-4: #22d3ee;
+  --model-5: #e879f9;
+  --model-6: #94a3b8;
+  --model-7: #f472b6;
+  --rate-rejected: #fbbf24;
+  --rate-canceled: #a78bfa;
+  --rate-backend: #fb923c;
+  --rate-other: #22d3ee;
 }
 body {
   margin: 0;
@@ -183,10 +187,25 @@ th {
   gap: 1rem;
   margin: 0 0 1rem;
 }
-.chart-wide {
-  grid-column: 1 / -1;
-}
 .chart {
+  margin: 0;
+}
+.versions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 0 0 1rem;
+}
+.versions > .card {
+  margin: 0;
+}
+.counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0 0 0.75rem;
+}
+.counts .chip {
   margin: 0;
 }
 .filter {
@@ -244,30 +263,51 @@ span.chip.chip-off {
   fill: var(--muted);
   font-size: 11px;
 }
-.plot .series-0 { stroke: var(--series-0); fill: none; stroke-width: 2; }
-.plot .series-1 { stroke: var(--series-1); fill: none; stroke-width: 2; }
-.plot .series-2 { stroke: var(--series-2); fill: none; stroke-width: 2; }
-.plot .series-3 { stroke: var(--series-3); fill: none; stroke-width: 2; }
-.plot .series-4 { stroke: var(--series-4); fill: none; stroke-width: 2; }
-.plot .series-5 { stroke: var(--series-5); fill: none; stroke-width: 2; }
-.plot .series-6 { stroke: var(--series-6); fill: none; stroke-width: 2; }
-.plot .series-7 { stroke: var(--series-7); fill: none; stroke-width: 2; }
-.plot circle.series-0 { fill: var(--series-0); stroke: none; }
-.plot circle.series-1 { fill: var(--series-1); stroke: none; }
-.plot circle.series-2 { fill: var(--series-2); stroke: none; }
-.plot circle.series-3 { fill: var(--series-3); stroke: none; }
-.plot circle.series-4 { fill: var(--series-4); stroke: none; }
-.plot circle.series-5 { fill: var(--series-5); stroke: none; }
-.plot circle.series-6 { fill: var(--series-6); stroke: none; }
-.plot circle.series-7 { fill: var(--series-7); stroke: none; }
-.legend .series-0 { color: var(--series-0); }
-.legend .series-1 { color: var(--series-1); }
-.legend .series-2 { color: var(--series-2); }
-.legend .series-3 { color: var(--series-3); }
-.legend .series-4 { color: var(--series-4); }
-.legend .series-5 { color: var(--series-5); }
-.legend .series-6 { color: var(--series-6); }
-.legend .series-7 { color: var(--series-7); }
+.plot .model-0 { stroke: var(--model-0); fill: none; stroke-width: 2; }
+.plot .model-1 { stroke: var(--model-1); fill: none; stroke-width: 2; }
+.plot .model-2 { stroke: var(--model-2); fill: none; stroke-width: 2; }
+.plot .model-3 { stroke: var(--model-3); fill: none; stroke-width: 2; }
+.plot .model-4 { stroke: var(--model-4); fill: none; stroke-width: 2; }
+.plot .model-5 { stroke: var(--model-5); fill: none; stroke-width: 2; }
+.plot .model-6 { stroke: var(--model-6); fill: none; stroke-width: 2; }
+.plot .model-7 { stroke: var(--model-7); fill: none; stroke-width: 2; }
+.plot circle.model-0 { fill: var(--model-0); stroke: none; }
+.plot circle.model-1 { fill: var(--model-1); stroke: none; }
+.plot circle.model-2 { fill: var(--model-2); stroke: none; }
+.plot circle.model-3 { fill: var(--model-3); stroke: none; }
+.plot circle.model-4 { fill: var(--model-4); stroke: none; }
+.plot circle.model-5 { fill: var(--model-5); stroke: none; }
+.plot circle.model-6 { fill: var(--model-6); stroke: none; }
+.plot circle.model-7 { fill: var(--model-7); stroke: none; }
+.legend .model-0 { color: var(--model-0); }
+.legend .model-1 { color: var(--model-1); }
+.legend .model-2 { color: var(--model-2); }
+.legend .model-3 { color: var(--model-3); }
+.legend .model-4 { color: var(--model-4); }
+.legend .model-5 { color: var(--model-5); }
+.legend .model-6 { color: var(--model-6); }
+.legend .model-7 { color: var(--model-7); }
+.plot .rate-success { stroke: var(--ready); fill: none; stroke-width: 2; }
+.plot .rate-failure { stroke: var(--unavailable); fill: none; stroke-width: 2; }
+.plot .rate-rejected { stroke: var(--rate-rejected); fill: none; stroke-width: 2; }
+.plot .rate-canceled { stroke: var(--rate-canceled); fill: none; stroke-width: 2; }
+.plot .rate-backend { stroke: var(--rate-backend); fill: none; stroke-width: 2; }
+.plot .rate-other { stroke: var(--rate-other); fill: none; stroke-width: 2; }
+.plot circle.rate-success { fill: var(--ready); stroke: none; }
+.plot circle.rate-failure { fill: var(--unavailable); stroke: none; }
+.plot circle.rate-rejected { fill: var(--rate-rejected); stroke: none; }
+.plot circle.rate-canceled { fill: var(--rate-canceled); stroke: none; }
+.plot circle.rate-backend { fill: var(--rate-backend); stroke: none; }
+.plot circle.rate-other { fill: var(--rate-other); stroke: none; }
+.legend .rate-success { color: var(--ready); }
+.legend .rate-failure { color: var(--unavailable); }
+.legend .rate-rejected { color: var(--rate-rejected); }
+.legend .rate-canceled { color: var(--rate-canceled); }
+.legend .rate-backend { color: var(--rate-backend); }
+.legend .rate-other { color: var(--rate-other); }
+@media (max-width: 1100px) {
+  .versions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 @media (max-width: 900px) {
   .shell { display: block; }
   .sidebar {
@@ -287,7 +327,9 @@ span.chip.chip-off {
   a.nav { margin: 0; }
   dl { grid-template-columns: 1fr; }
   .charts { grid-template-columns: 1fr; }
-  .chart-wide { grid-column: auto; }
+}
+@media (max-width: 700px) {
+  .versions { grid-template-columns: 1fr; }
 }
 `
 
@@ -322,6 +364,7 @@ const markup = `
 {{define "nodes"}}{{template "top" .}}<main>
 <h1>Nodes</h1>
 <p class="fresh">Refreshes every 10 seconds.</p>
+<p class="section-note">Last 15 minutes.</p>
 {{template "status" .}}
 {{if .Empty}}<p>No engines.</p>{{end}}
 {{range .Nodes}}<article class="card{{if .Unknown}} unknown{{end}}">
@@ -339,6 +382,7 @@ const markup = `
 {{define "models"}}{{template "top" .}}<main>
 <h1>Models</h1>
 <p class="fresh">Refreshes every 10 seconds.</p>
+<p class="section-note">Last 15 minutes.</p>
 {{template "status" .}}
 {{if .Empty}}<p>No engines.</p>{{else}}<div class="table-wrap"><table>
 <thead><tr><th>Model</th><th>State</th><th>Engines</th><th>Requests/s</th><th>Error</th><th>Request</th><th>Queue</th><th>Compute</th><th>Queue depth</th></tr></thead>
@@ -360,35 +404,31 @@ const markup = `
 <dt>Server id</dt><dd>{{.Body.ServerID}}</dd>
 <dt>Node</dt><dd{{if .Body.NodeUnknown}} class="unknown"{{end}}>{{.Body.Node}}</dd>
 <dt>Application</dt><dd{{if .Body.ApplicationUnknown}} class="unknown"{{end}}>{{.Body.Application}}</dd>
-<dt>Live</dt><dd>{{.Body.Live}}</dd>
-<dt>Ready</dt><dd>{{.Body.Ready}}</dd>
-<dt>NATS connected</dt><dd>{{.Body.NATS}}</dd>
+<dt>Live</dt><dd><span class="chip {{if .Body.Live}}chip-on{{else}}chip-off{{end}}">Live</span></dd>
+<dt>Ready</dt><dd><span class="chip {{if .Body.Ready}}chip-on{{else}}chip-off{{end}}">Ready</span></dd>
+<dt>NATS connected</dt><dd><span class="chip {{if .Body.NATS}}chip-on{{else}}chip-off{{end}}">NATS</span></dd>
+<dt>ONNX Runtime</dt><dd>{{if .Body.RuntimeKnown}}<span class="chip">{{.Body.Runtime}}</span>{{else}}<span class="chip unknown">unknown</span>{{end}}</dd>
+<dt>Execution providers</dt><dd>{{if .Body.Providers}}{{range .Body.Providers}}<span class="chip">{{.}}</span> {{end}}{{else}}<span class="chip unknown">unknown</span>{{end}}</dd>
 </dl>
-<p>Provider image <span class="unknown">unknown</span></p>
 <section class="stats">
 {{range .Body.Stats}}<article class="stat"><p class="stat-label">{{.Label}}</p><p class="stat-value{{if not .Known}} unknown{{else if .Bad}} state-unavailable{{end}}">{{.Text}}</p></article>
 {{end}}</section>
 {{if .Body.Filters}}<p class="filter">{{range .Body.Filters}}<a class="chip{{if .Active}} chip-on{{end}}" href="{{.Href}}">{{.Label}}</a>{{end}}</p>{{end}}
 <p class="section-note">Last 15 minutes.</p>
 <div class="charts">
-{{range .Body.Charts}}<section class="card chart{{if .Wide}} chart-wide{{end}}">
+{{range .Body.Charts}}<section class="card chart">
 <h2>{{.Title}}</h2>
 <p class="unit">{{.Unit}}</p>
 {{if .Empty}}<p class="unknown">{{.Empty}}</p>{{else}}{{.SVG}}
 <ul class="legend">{{range .Legend}}<li class="{{.Class}}">{{.Label}}</li>{{end}}</ul>{{end}}
 </section>
 {{end}}</div>
+<div class="versions">
 {{range .Body.Models}}<section class="card version">
-<h2>{{.Name}} {{.Version}}</h2>
+<h2>{{.Name}}</h2>
+<p><span class="chip">version:{{.Version}}</span></p>
 <p>Queue depth {{.Pending}}</p>
-<p>Success {{.Success}}</p>
-<ul>
-<li>REJECTED {{.Rejected}}</li>
-<li>CANCELED {{.Canceled}}</li>
-<li>BACKEND {{.Backend}}</li>
-<li>OTHER {{.Other}}</li>
-</ul>
-<p>Failures {{.Failures}}</p>
+<p class="counts"><span class="chip{{if gt .Success 0}} chip-on{{end}}">Success {{.Success}}</span><span class="chip{{if gt .Rejected 0}} chip-off{{end}}">REJECTED {{.Rejected}}</span><span class="chip{{if gt .Canceled 0}} chip-off{{end}}">CANCELED {{.Canceled}}</span><span class="chip{{if gt .Backend 0}} chip-off{{end}}">BACKEND {{.Backend}}</span><span class="chip{{if gt .Other 0}} chip-off{{end}}">OTHER {{.Other}}</span><span class="chip{{if gt .Failures 0}} chip-off{{end}}">Failures {{.Failures}}</span></p>
 <p{{if not .BatchKnown}} class="unknown"{{end}}>Average batch size {{.Batch}}</p>
 <p>State <span class="{{.StateClass}}">{{.State}}</span></p>
 {{if .Reason}}<p>Reason {{.Reason}}</p>{{end}}
@@ -397,7 +437,7 @@ const markup = `
 <p{{if not .QueueKnown}} class="unknown"{{end}}>Queue latency {{.QueueLatency}}</p>
 <p{{if not .ComputeKnown}} class="unknown"{{end}}>Compute latency {{.ComputeText}}</p>
 </section>
-{{end}}
+{{end}}</div>
 {{end}}</main>
 {{template "bottom" .}}{{end}}
 `

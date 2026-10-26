@@ -159,15 +159,12 @@ func checkChain(ctr *container) error {
 	}
 	var chains int
 	for _, line := range lines {
-		if !strings.EqualFold(line.Level, "info") {
-			continue
-		}
-		if !strings.Contains(line.Msg, "execution providers") {
+		if !strings.EqualFold(line.Level, "info") || line.Msg != "runtime" || len(line.Providers) == 0 {
 			continue
 		}
 		chains++
-		if line.Msg != chainLine || strings.Contains(line.Msg, "XnnpackExecutionProvider") {
-			return fmt.Errorf("chain line %q", line.Msg)
+		if len(line.Providers) != 1 || line.Providers[0] != "CPUExecutionProvider" {
+			return fmt.Errorf("chain %v", line.Providers)
 		}
 	}
 	if chains != 1 {
@@ -177,8 +174,9 @@ func checkChain(ctr *container) error {
 }
 
 type logLine struct {
-	Level string `json:"level"`
-	Msg   string `json:"msg"`
+	Level     string   `json:"level"`
+	Msg       string   `json:"msg"`
+	Providers []string `json:"providers"`
 }
 
 func logLines(text string) ([]logLine, error) {

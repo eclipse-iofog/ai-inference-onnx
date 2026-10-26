@@ -22,7 +22,6 @@ type chartView struct {
 	Title  string
 	Unit   string
 	Empty  string
-	Wide   bool
 	SVG    template.HTML
 	Legend []legendItem
 }
@@ -35,29 +34,45 @@ type legendItem struct {
 func presentCharts(charts []chart) []chartView {
 	out := make([]chartView, len(charts))
 	for i, item := range charts {
-		view := chartView{Title: item.title, Unit: item.unit, Empty: item.empty, Wide: item.wide}
+		view := chartView{Title: item.title, Unit: item.unit, Empty: item.empty}
 		if item.empty == "" {
 			if _, _, ok := logSpan(item); ok {
 				view.Unit = item.unit + ", log scale"
 			}
 			view.SVG = template.HTML(drawChart(item)) // #nosec G203 -- the graph escapes snapshot text; coordinates and class names are produced by the page
-			view.Legend = legendOf(item.series)
+			view.Legend = legendOf(item)
 		}
 		out[i] = view
 	}
 	return out
 }
 
-func legendOf(series []chartSeries) []legendItem {
-	out := make([]legendItem, len(series))
-	for i, item := range series {
-		out[i] = legendItem{Class: seriesClass(i), Label: item.name}
+func legendOf(item chart) []legendItem {
+	out := make([]legendItem, len(item.series))
+	for i, series := range item.series {
+		out[i] = legendItem{Class: seriesClass(item.palette, series.name, i), Label: series.name}
 	}
 	return out
 }
 
-func seriesClass(i int) string {
-	return "series-" + strconv.Itoa(i%8)
+func seriesClass(palette, name string, i int) string {
+	if palette == paletteRate {
+		switch name {
+		case "Success":
+			return "rate-success"
+		case "Failure":
+			return "rate-failure"
+		case "REJECTED":
+			return "rate-rejected"
+		case "CANCELED":
+			return "rate-canceled"
+		case "BACKEND":
+			return "rate-backend"
+		default:
+			return "rate-other"
+		}
+	}
+	return "model-" + strconv.Itoa(i%8)
 }
 
 func drawChart(item chart) string {
@@ -105,7 +120,7 @@ func drawChart(item chart) string {
 	writeAxisTime(&b, start.Add(end.Sub(start)/2), chartPadL+plotW/2, "middle")
 	writeAxisTime(&b, end, chartPadL+plotW, "end")
 	for i, series := range item.series {
-		class := seriesClass(i)
+		class := seriesClass(item.palette, series.name, i)
 		for _, span := range series.spans {
 			if len(span) >= 2 {
 				_, _ = b.WriteString(`<polyline class="`)

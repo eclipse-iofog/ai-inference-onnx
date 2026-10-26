@@ -45,9 +45,20 @@ type Config struct {
 	// Context is passed to every run. Canceling it at shutdown cancels queued and running requests.
 	// Nil is a context that is never canceled.
 	Context context.Context
+	// Name is the server id that server metadata reports.
+	Name string
+	// Version is the engine version that server metadata reports.
+	Version string
+	// ExecutionProviders is the provider chain server metadata reports, in append order.
+	// Empty means the runtime library did not load.
+	ExecutionProviders []string
+	// ORTVersion is the ONNX Runtime version server metadata reports.
+	// Empty means the runtime library did not load.
+	ORTVersion string
 	// Logger records infer outcomes and replies that could not be sent. A nil logger records nothing.
-	// Success is debug and includes timing. A rejected caller is warn. A run that did not finish is error.
-	// The log does not include the tensor body or any header the caller sent.
+	// Success is debug. A rejected caller is warn. A run that did not finish is error.
+	// The line names the transport, model, version, request id, status, and duration.
+	// It does not include the tensor body or any header the caller sent.
 	Logger *slog.Logger
 }
 
@@ -96,7 +107,7 @@ func (h *Handler) serve(conn publisher, msg *nats.Msg) {
 	case OpReady:
 		h.serveReady(conn, msg)
 	case OpServerMetadata:
-		h.writeDocument(conn, msg, http.StatusOK, serverDocument())
+		h.writeDocument(conn, msg, http.StatusOK, h.serverDocument())
 	case OpModelList:
 		h.writeDocument(conn, msg, http.StatusOK, modelList{Models: batch.Names(h.directories())})
 	case OpRepositoryIndex:

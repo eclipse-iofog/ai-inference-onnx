@@ -37,10 +37,11 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
+ARG OCI_VERSION=dev
 RUN set -eu; \
     . /opt/rh/gcc-toolset-14/enable; \
     mkdir -p /out; \
-    CGO_ENABLED=1 go build -trimpath -buildvcs=false -o /out/inference ./cmd/inference; \
+    CGO_ENABLED=1 go build -trimpath -buildvcs=false -ldflags "-X github.com/eclipse-iofog/ai-inference-onnx/internal/buildinfo.Version=${OCI_VERSION}" -o /out/inference ./cmd/inference; \
     if readelf -d /out/inference | grep -q 'libonnxruntime'; then \
       echo "engine binary links the runtime library" >&2; \
       exit 1; \
@@ -76,10 +77,11 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
+ARG OCI_VERSION=dev
 RUN set -eu; \
     . /opt/rh/gcc-toolset-14/enable; \
     mkdir -p /out; \
-    CGO_ENABLED=1 go build -trimpath -buildvcs=false -o /out/inference ./cmd/inference; \
+    CGO_ENABLED=1 go build -trimpath -buildvcs=false -ldflags "-X github.com/eclipse-iofog/ai-inference-onnx/internal/buildinfo.Version=${OCI_VERSION}" -o /out/inference ./cmd/inference; \
     if readelf -d /out/inference | grep -q 'libonnxruntime'; then \
       echo "engine binary links the runtime library" >&2; \
       exit 1; \

@@ -46,7 +46,7 @@ After the library loads, the engine reads the providers that library reports and
 5. QNN.
 6. Otherwise CPU.
 
-It logs the chain once at start, for example `CPUExecutionProvider`. If that provider cannot start, the model is `UNAVAILABLE` with the reason, and the engine does not retry on CPU. After the provider has started, an unsupported node may still run on CPU. That is graph partitioning. It is not a fallback when the device library failed to load.
+It logs the chain once at start, on the `runtime` line in `providers`, for example `CPUExecutionProvider`. If that provider cannot start, the model is `UNAVAILABLE` with the reason, and the engine does not retry on CPU. After the provider has started, an unsupported node may still run on CPU. That is graph partitioning. It is not a fallback when the device library failed to load.
 
 OpenVINO runs on the CPU device. TensorRT keeps its engine cache and its timing cache under `/var/cache/inference/tensorrt`. That cache survives a restart only when `/var/cache/inference` is a volume.
 

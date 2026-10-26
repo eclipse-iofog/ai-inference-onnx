@@ -2,9 +2,9 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 
+	"github.com/eclipse-iofog/ai-inference-onnx/internal/buildinfo"
 	"github.com/eclipse-iofog/ai-inference-onnx/internal/config"
 	"github.com/eclipse-iofog/ai-inference-onnx/internal/natsapi"
 )
@@ -18,13 +18,17 @@ func startNATS(ctx context.Context, cfg config.Config, models *modelRuntime, log
 		return nil
 	}
 	handler := natsapi.NewHandler(natsapi.Config{
-		Catalog:         models,
-		Runner:          models,
-		Ready:           models.ready,
-		MaxPayloadBytes: cfg.MaxPayloadBytes,
-		Buffers:         models.buffers(),
-		Context:         ctx,
-		Logger:          logger,
+		Catalog:            models,
+		Runner:             models,
+		Ready:              models.ready,
+		MaxPayloadBytes:    cfg.MaxPayloadBytes,
+		Buffers:            models.buffers(),
+		Name:               cfg.ServerID,
+		Version:            buildinfo.Version,
+		ExecutionProviders: models.executionProviders(),
+		ORTVersion:         models.runtimeVersion(),
+		Context:            ctx,
+		Logger:             logger,
 	})
 	listener, err := natsapi.Dial(natsapi.ListenerConfig{
 		URL:       cfg.NATSServerURL,
@@ -34,7 +38,7 @@ func startNATS(ctx context.Context, cfg config.Config, models *modelRuntime, log
 		Logger:    logger,
 	})
 	if err != nil {
-		logger.Error(fmt.Sprintf("nats: %v", err))
+		logger.Error("nats", "error", err)
 		return nil
 	}
 	return listener

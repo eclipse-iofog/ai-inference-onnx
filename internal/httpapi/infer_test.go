@@ -172,13 +172,13 @@ func TestInferLogs(t *testing.T) {
 	if len(lines) != 3 {
 		t.Fatalf("lines %d:\n%s", len(lines), text)
 	}
-	if !strings.EqualFold(lines[0].Level, "debug") || !strings.Contains(lines[0].Msg, "infer finished") || lines[0].Status != http.StatusOK || lines[0].Duration == "" {
+	if !strings.EqualFold(lines[0].Level, "debug") || lines[0].Msg != "infer" || lines[0].Status != http.StatusOK || lines[0].DurationUS == nil || lines[0].Transport != "http" || lines[0].ID != "add-json" {
 		t.Fatalf("success log %+v", lines[0])
 	}
-	if !strings.EqualFold(lines[1].Level, "warn") || !strings.Contains(lines[1].Msg, "infer rejected") {
+	if !strings.EqualFold(lines[1].Level, "warn") || lines[1].Msg != "infer" || lines[1].ErrorKind != "invalid" {
 		t.Fatalf("reject log %+v", lines[1])
 	}
-	if !strings.EqualFold(lines[2].Level, "error") || !strings.Contains(lines[2].Msg, "infer did not finish") || !strings.Contains(lines[2].Error, "backend stopped") {
+	if !strings.EqualFold(lines[2].Level, "error") || lines[2].Msg != "infer" || lines[2].ErrorKind != "runtime" || !strings.Contains(lines[2].Error, "backend stopped") {
 		t.Fatalf("failure log %+v", lines[2])
 	}
 }
@@ -576,11 +576,14 @@ type binaryInferHeader struct {
 }
 
 type inferLog struct {
-	Level    string `json:"level"`
-	Msg      string `json:"msg"`
-	Status   int    `json:"status"`
-	Duration string `json:"duration"`
-	Error    string `json:"error"`
+	Level      string `json:"level"`
+	Msg        string `json:"msg"`
+	Status     int    `json:"status"`
+	DurationUS *int64 `json:"duration_us"`
+	Error      string `json:"error"`
+	ErrorKind  string `json:"error_kind"`
+	ID         string `json:"id"`
+	Transport  string `json:"transport"`
 }
 
 func decodeInferLog(t *testing.T, out string) []inferLog {

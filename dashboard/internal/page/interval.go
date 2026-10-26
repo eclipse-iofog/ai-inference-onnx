@@ -12,10 +12,12 @@ import (
 )
 
 const (
-	// chartWindow is the span of every graph.
+	// chartWindow is the span of every graph and of the summary numbers.
 	chartWindow = 15 * time.Minute
 	// refreshSeconds is how often the page reloads. Snapshots arrive on that same cadence by default.
 	refreshSeconds = 10
+	paletteRate    = "rate"
+	paletteModel   = "model"
 )
 
 const (
@@ -75,13 +77,13 @@ type chartSeries struct {
 }
 
 type chart struct {
-	title  string
-	unit   string
-	empty  string
-	wide   bool
-	start  time.Time
-	end    time.Time
-	series []chartSeries
+	title   string
+	unit    string
+	empty   string
+	palette string
+	start   time.Time
+	end     time.Time
+	series  []chartSeries
 }
 
 type folded struct {
@@ -113,8 +115,11 @@ func rateReading(perSecond float64, known bool) reading {
 	return reading{Text: strconv.FormatFloat(truncated, 'f', 3, 64) + " /s", Known: true}
 }
 
-func percentReading(fail, total uint64) reading {
+func percentReading(fail, total uint64, idle bool) reading {
 	if total == 0 {
+		if idle {
+			return reading{Text: "0.0%", Known: true}
+		}
 		return unknownReading()
 	}
 	scaled, ok := mul(fail, 1000)
@@ -151,33 +156,32 @@ func foldEngines(engines []store.Engine, model string, pendingMax bool) folded {
 		slowUs, slowN          uint64
 		slowKnown              bool
 		failed                 bool
+		measured               bool
 	)
 	for _, eng := range engines {
-		st, ok := latestStep(eng.Samples, model)
-		if ok {
-			for _, vs := range st.versions {
-				if !vs.ok {
-					continue
-				}
-				var good bool
-				success, good = add(success, vs.success)
-				failed = failed || !good
-				fail, good = add(fail, vs.fail)
-				failed = failed || !good
-				us, good = add(us, vs.request)
-				failed = failed || !good
-				queueUs, good = add(queueUs, vs.queue)
-				failed = failed || !good
-				computeUs, good = add(computeUs, vs.compute)
-				failed = failed || !good
-				if vs.success > 0 && slower(vs.request, vs.success, slowUs, slowN, slowKnown) {
-					slowUs, slowN, slowKnown = vs.request, vs.success, true
-				}
-			}
-			seconds := st.dt.Seconds()
-			if seconds > 0 {
-				rate += float64(stepCount(st)) / seconds
+		sum, status := windowOf(eng.Samples, model, "")
+		switch status {
+		case windowOverflow:
+			failed = true
+		case windowOK:
+			measured = true
+			var good bool
+			success, good = add(success, sum.success)
+			failed = failed || !good
+			fail, good = add(fail, sum.fail)
+			failed = failed || !good
+			us, good = add(us, sum.request)
+			failed = failed || !good
+			queueUs, good = add(queueUs, sum.queue)
+			failed = failed || !good
+			computeUs, good = add(computeUs, sum.compute)
+			failed = failed || !good
+			if sum.elapsed > 0 {
+				rate += float64(sum.requests) / sum.elapsed.Seconds()
 				rateKnown = true
+			}
+			if sum.slowKnown && slower(sum.slowRequest, sum.slowSuccess, slowUs, slowN, slowKnown) {
+				slowUs, slowN, slowKnown = sum.slowRequest, sum.slowSuccess, true
 			}
 		}
 		if n, known := pendingOf(eng.Samples, model); known {
@@ -196,9 +200,11 @@ func foldEngines(engines []store.Engine, model string, pendingMax bool) folded {
 			pendingSet = true
 		}
 	}
+	total, totalOK := add(success, fail)
+	failed = failed || !totalOK
 	out := folded{
 		requests: rateReading(rate, rateKnown && !failed),
-		errors:   percentReading(fail, success+fail),
+		errors:   percentReading(fail, total, measured && !failed && total == 0),
 		request:  msReading(us, success),
 		queue:    msReading(queueUs, success),
 		compute:  msReading(computeUs, success),
@@ -229,16 +235,6 @@ func slower(us, n, bestUs, bestN uint64, bestKnown bool) bool {
 	return float64(us)/float64(n) > float64(bestUs)/float64(bestN)
 }
 
-func stepCount(st step) uint64 {
-	var n uint64
-	for _, vs := range st.versions {
-		if vs.ok {
-			n += vs.success + vs.fail
-		}
-	}
-	return n
-}
-
 func pendingOf(samples []store.Sample, model string) (uint64, bool) {
 	if len(samples) == 0 {
 		return 0, false
@@ -263,12 +259,103 @@ func pendingOf(samples []store.Sample, model string) (uint64, bool) {
 	return sum, true
 }
 
-func latestStep(samples []store.Sample, model string) (step, bool) {
+type windowStatus int
+
+const (
+	windowNone windowStatus = iota
+	windowOK
+	windowOverflow
+)
+
+type windowSum struct {
+	success, fail           uint64
+	request, queue, compute uint64
+	requests                uint64
+	elapsed                 time.Duration
+	slowRequest             uint64
+	slowSuccess             uint64
+	slowKnown               bool
+}
+
+// windowOf sums comparable intervals in the last 15 minutes.
+// version limits the counters to one model version. An empty version includes every version of model.
+// The span runs from the older snapshot of the first interval in the window to the newest snapshot.
+func windowOf(samples []store.Sample, model, version string) (windowSum, windowStatus) {
 	if len(samples) < 2 {
-		return step{}, false
+		return windowSum{}, windowNone
 	}
-	st := stepBetween(samples[len(samples)-2], samples[len(samples)-1], model)
-	return st, st.ok
+	newest := samples[len(samples)-1].At
+	start := newest.Add(-chartWindow)
+	var sum windowSum
+	per := map[string]struct{ request, success uint64 }{}
+	opened := false
+	matched := false
+	for i := 1; i < len(samples); i++ {
+		newer := samples[i]
+		if newer.At.Before(start) {
+			continue
+		}
+		if !opened {
+			sum.elapsed = newest.Sub(samples[i-1].At)
+			opened = true
+		}
+		st := stepBetween(samples[i-1], newer, model)
+		if !st.ok {
+			continue
+		}
+		for _, vs := range st.versions {
+			if !vs.ok || (version != "" && vs.version != version) {
+				continue
+			}
+			var good bool
+			sum.success, good = add(sum.success, vs.success)
+			if !good {
+				return windowSum{}, windowOverflow
+			}
+			sum.fail, good = add(sum.fail, vs.fail)
+			if !good {
+				return windowSum{}, windowOverflow
+			}
+			sum.request, good = add(sum.request, vs.request)
+			if !good {
+				return windowSum{}, windowOverflow
+			}
+			sum.queue, good = add(sum.queue, vs.queue)
+			if !good {
+				return windowSum{}, windowOverflow
+			}
+			sum.compute, good = add(sum.compute, vs.compute)
+			if !good {
+				return windowSum{}, windowOverflow
+			}
+			key := vs.name + "\x00" + vs.version
+			acc := per[key]
+			acc.request, good = add(acc.request, vs.request)
+			if !good {
+				return windowSum{}, windowOverflow
+			}
+			acc.success, good = add(acc.success, vs.success)
+			if !good {
+				return windowSum{}, windowOverflow
+			}
+			per[key] = acc
+			matched = true
+		}
+	}
+	if !matched {
+		return windowSum{}, windowNone
+	}
+	var requestsOK bool
+	sum.requests, requestsOK = add(sum.success, sum.fail)
+	if !requestsOK {
+		return windowSum{}, windowOverflow
+	}
+	for _, acc := range per {
+		if acc.success > 0 && slower(acc.request, acc.success, sum.slowRequest, sum.slowSuccess, sum.slowKnown) {
+			sum.slowRequest, sum.slowSuccess, sum.slowKnown = acc.request, acc.success, true
+		}
+	}
+	return sum, windowOK
 }
 
 func stepBetween(older, newer store.Sample, model string) step {
@@ -442,11 +529,11 @@ func stateRank(state string) int {
 
 func buildCharts(samples []store.Sample, model string) []chart {
 	charts := []chart{
-		{title: "Request rate", unit: "per second"},
-		{title: "Request latency", unit: "milliseconds"},
-		{title: "Queue latency", unit: "milliseconds"},
-		{title: "Compute latency", unit: "milliseconds"},
-		{title: "Queue depth", unit: "requests", wide: true},
+		{title: "Request rate", unit: "per second", palette: paletteRate},
+		{title: "Request latency", unit: "milliseconds", palette: paletteModel},
+		{title: "Queue latency", unit: "milliseconds", palette: paletteModel},
+		{title: "Compute latency", unit: "milliseconds", palette: paletteModel},
+		{title: "Queue depth", unit: "requests", palette: paletteModel},
 	}
 	if model != "" && !modelOnLatest(samples, model) {
 		for i := range charts {
@@ -618,7 +705,7 @@ func versionLabel(item store.Model) string {
 	if item.Version == "" {
 		return item.Name
 	}
-	return item.Name + " " + item.Version
+	return item.Name + ":" + item.Version
 }
 
 func seriesFor(sets map[string]*chartSeries, key, label string) *chartSeries {

@@ -39,14 +39,16 @@ type sample struct {
 }
 
 type snapshot struct {
-	serverID         string
-	microserviceName string
-	nodeUID          string
-	applicationName  string
-	live             bool
-	ready            bool
-	natsConnected    bool
-	models           []Model
+	serverID           string
+	microserviceName   string
+	nodeUID            string
+	applicationName    string
+	live               bool
+	ready              bool
+	natsConnected      bool
+	executionProviders []string
+	ortVersion         string
+	models             []Model
 }
 
 // New returns an empty store.
@@ -271,16 +273,27 @@ func engineView(id string, rec *engineRec) Engine {
 	}
 	snap := last.snap
 	return Engine{
-		ServerID:         id,
-		MicroserviceName: snap.microserviceName,
-		NodeUID:          snap.nodeUID,
-		ApplicationName:  snap.applicationName,
-		Live:             snap.live,
-		Ready:            snap.ready,
-		NATSConnected:    snap.natsConnected,
-		Models:           cloneModels(snap.models),
-		Samples:          samples,
+		ServerID:           id,
+		MicroserviceName:   snap.microserviceName,
+		NodeUID:            snap.nodeUID,
+		ApplicationName:    snap.applicationName,
+		Live:               snap.live,
+		Ready:              snap.ready,
+		NATSConnected:      snap.natsConnected,
+		ExecutionProviders: cloneStrings(snap.executionProviders),
+		ORTVersion:         snap.ortVersion,
+		Models:             cloneModels(snap.models),
+		Samples:            samples,
 	}
+}
+
+func cloneStrings(in []string) []string {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]string, len(in))
+	copy(out, in)
+	return out
 }
 
 func cloneModels(in []Model) []Model {

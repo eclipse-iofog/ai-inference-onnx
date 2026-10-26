@@ -95,6 +95,20 @@ func GateError(status int, reason string) error {
 	}
 }
 
+const (
+	errorKindInvalid       = "invalid"
+	errorKindLoading       = "loading"
+	errorKindNotFound      = "not_found"
+	errorKindUnavailable   = "unavailable"
+	errorKindQueueFull     = "queue_full"
+	errorKindQueueTimeout  = "queue_timeout"
+	errorKindDeadline      = "deadline"
+	errorKindCanceled      = "canceled"
+	errorKindUnimplemented = "unimplemented"
+	errorKindRuntime       = "runtime"
+	errorKindMethod        = "method_not_allowed"
+)
+
 // Result is how one transport writes an infer outcome.
 type Result struct {
 	// HTTP is the response status code.
@@ -105,6 +119,8 @@ type Result struct {
 	Message string
 	// Level is the log level of the outcome: debug for success, warn for a rejected caller, error for a failed run.
 	Level slog.Level
+	// ErrorKind classifies a failed outcome for the log. It is empty on success.
+	ErrorKind string
 }
 
 // Status maps an infer outcome to its HTTP and gRPC result. A nil error is success.
@@ -115,39 +131,47 @@ func Status(err error) Result {
 	}
 	var invalid *InvalidError
 	if errors.As(err, &invalid) {
-		return rejected(http.StatusBadRequest, codes.InvalidArgument, invalid.Error())
+		return rejected(http.StatusBadRequest, codes.InvalidArgument, invalid.Error(), errorKindInvalid)
 	}
 	var e *Error
 	if errors.As(err, &e) {
 		switch e.Kind {
-		case KindLoading, KindQueueFull:
-			return rejected(http.StatusServiceUnavailable, codes.Unavailable, e.Reason)
+		case KindLoading:
+			return rejected(http.StatusServiceUnavailable, codes.Unavailable, e.Reason, errorKindLoading)
+		case KindQueueFull:
+			return rejected(http.StatusServiceUnavailable, codes.Unavailable, e.Reason, errorKindQueueFull)
 		case KindNotFound:
-			return rejected(http.StatusNotFound, codes.NotFound, e.Reason)
+			return rejected(http.StatusNotFound, codes.NotFound, e.Reason, errorKindNotFound)
 		case KindUnavailable:
-			return rejected(http.StatusBadRequest, codes.FailedPrecondition, e.Reason)
+			return rejected(http.StatusBadRequest, codes.FailedPrecondition, e.Reason, errorKindUnavailable)
 		case KindQueueTimeout:
-			return rejected(http.StatusGatewayTimeout, codes.DeadlineExceeded, e.Reason)
+			return rejected(http.StatusGatewayTimeout, codes.DeadlineExceeded, e.Reason, errorKindQueueTimeout)
 		case KindUnimplemented:
-			return rejected(http.StatusNotImplemented, codes.Unimplemented, e.Reason)
+			return rejected(http.StatusNotImplemented, codes.Unimplemented, e.Reason, errorKindUnimplemented)
 		default:
 		}
 	}
 	switch {
 	case errors.Is(err, context.DeadlineExceeded):
-		return rejected(http.StatusGatewayTimeout, codes.DeadlineExceeded, deadlineText)
+		return rejected(http.StatusGatewayTimeout, codes.DeadlineExceeded, deadlineText, errorKindDeadline)
 	case errors.Is(err, context.Canceled):
-		return rejected(http.StatusBadRequest, codes.Canceled, canceledText)
+		return rejected(http.StatusBadRequest, codes.Canceled, canceledText, errorKindCanceled)
 	default:
 	}
 	return Result{
-		HTTP:    http.StatusInternalServerError,
-		GRPC:    codes.Internal,
-		Message: runtimeText + ": " + err.Error(),
-		Level:   slog.LevelError,
+		HTTP:      http.StatusInternalServerError,
+		GRPC:      codes.Internal,
+		Message:   runtimeText + ": " + err.Error(),
+		Level:     slog.LevelError,
+		ErrorKind: errorKindRuntime,
 	}
 }
 
-func rejected(httpStatus int, code codes.Code, message string) Result {
-	return Result{HTTP: httpStatus, GRPC: code, Message: message, Level: slog.LevelWarn}
+// MethodNotAllowed is the outcome of an infer call that used a method other than POST.
+func MethodNotAllowed() Result {
+	return rejected(http.StatusMethodNotAllowed, codes.Unimplemented, "method not allowed", errorKindMethod)
+}
+
+func rejected(httpStatus int, code codes.Code, message, kind string) Result {
+	return Result{HTTP: httpStatus, GRPC: code, Message: message, Level: slog.LevelWarn, ErrorKind: kind}
 }

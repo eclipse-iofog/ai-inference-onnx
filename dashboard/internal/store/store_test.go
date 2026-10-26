@@ -433,6 +433,22 @@ func TestImageFieldIsIgnored(t *testing.T) {
 	if status != StatusLive || eng.MicroserviceName != "wafer-engine" || eng.Models[0].Name != "wafer-defect" {
 		t.Fatalf("engine-a %+v", eng.ServerID)
 	}
+	if eng.ORTVersion != "" || len(eng.ExecutionProviders) != 0 {
+		t.Fatalf("runtime %+v %q", eng.ExecutionProviders, eng.ORTVersion)
+	}
+}
+
+func TestRuntimeFields(t *testing.T) {
+	at := fixtureAt()
+	s := New(func() time.Time { return at })
+	body := strings.Replace(fixtureEngineA, `"nats_connected": true,`, `"nats_connected": true, "execution_providers": ["TensorrtExecutionProvider", "", "CUDAExecutionProvider"], "ort_version": "1.31.0",`, 1)
+	if !s.Accept([]byte(body)) {
+		t.Fatal("snapshot was dropped")
+	}
+	eng, status := s.Lookup("engine-a")
+	if status != StatusLive || eng.ORTVersion != "1.31.0" || len(eng.ExecutionProviders) != 2 || eng.ExecutionProviders[0] != "TensorrtExecutionProvider" || eng.ExecutionProviders[1] != "CUDAExecutionProvider" {
+		t.Fatalf("runtime %+v %q", eng.ExecutionProviders, eng.ORTVersion)
+	}
 }
 
 func TestLatencyIsTheRatioOfSums(t *testing.T) {
@@ -650,6 +666,8 @@ func droppedBodies() []struct {
 		{name: "slash server id", body: []byte(strings.Replace(fixtureEngineA, `"server_id": "engine-a"`, `"server_id": "eng/1"`, 1))},
 		{name: "empty server id", body: []byte(strings.Replace(fixtureEngineA, `"server_id": "engine-a"`, `"server_id": ""`, 1))},
 		{name: "missing live", body: []byte(strings.Replace(fixtureEngineA, "  \"live\": true,\n", "", 1))},
+		{name: "provider string", body: []byte(strings.Replace(fixtureEngineA, `"nats_connected": true,`, `"nats_connected": true, "execution_providers": "CPUExecutionProvider",`, 1))},
+		{name: "version number", body: []byte(strings.Replace(fixtureEngineA, `"nats_connected": true,`, `"nats_connected": true, "ort_version": 1,`, 1))},
 		{name: "not an object", body: []byte(`[]`)},
 		{name: "not utf-8", body: []byte("{\"schema\":1,\"server_id\":\"a\xffb\",\"live\":true,\"ready\":true,\"nats_connected\":true,\"models\":[]}")},
 		{name: "trailing value", body: append([]byte(fixtureEngineA), []byte(`{"schema":1}`)...)},

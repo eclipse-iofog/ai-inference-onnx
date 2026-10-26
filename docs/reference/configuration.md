@@ -45,14 +45,24 @@ NATS stays off unless both `natsServerUrl` and `natsCredsPath` are set. When a m
 
 ## Logging
 
-One JSON logger writes to stdout. `logLevel` is `debug`, `info`, `warn`, or `error`.
+One JSON logger writes to stdout. `logLevel` is `debug`, `info`, `warn`, or `error`. After settings load, every line includes `service` (`inference`) and `server_id`.
+
+The message is the event name. The detail is in attributes. A failure is an `error` attribute.
 
 | Level | What it records |
 |---|---|
-| `info` | A listener is up, a model became `READY`, a reload started or finished, and NATS connected or disconnected. |
-| `warn` | A retry, a rejected caller, or a model that became `UNAVAILABLE`. |
-| `error` | A step the process attempted and could not finish. |
-| `debug` | Per-request timing, without the tensor body. |
+| `info` | `start` with the safe settings. `listener` for HTTP, gRPC, and metrics. `runtime` with the ONNX Runtime version and the execution providers. `model` when a model is `READY` or a load starts. NATS connected, disconnected, or closed. `stopping` on a signal, and `stopped` when shutdown finishes. |
+| `warn` | A NATS retry. `model` when a model is `UNAVAILABLE`, including the load `reason`. `auth` for each denied REST or gRPC call. `infer` when a caller is rejected. `cache` when the user cache directory cannot be read. `metrics` when a snapshot cannot be published. |
+| `error` | A step the process attempted and could not finish. The message is `configuration`, `authentication`, `listen`, `runtime`, `models`, `watch`, `serve`, `stop`, `nats`, or `infer` when a run did not finish. |
+| `debug` | `infer` for a call that finished, and `batch` for a run. Timing is `duration_us` on infer, and `queue_wait_us` and `run_us` on a batch. |
+
+`start` records the engine version, the auth mode, the three ports, whether TLS is on, the model and knowledge paths, the queue capacity, the payload limit, the thread counts, the batch delay, the metrics interval, and whether NATS is enabled. It does not record the static token, a NATS URL, a credentials path, or a certificate path. NATS stays off when that field is false, and the process does not dial.
+
+`infer` is one record for HTTP, gRPC, and NATS. It names `transport`, the model, the version, the caller request id, the HTTP status, and `duration_us`. gRPC also names `grpc_code`. A failure adds `error` and `error_kind`. An id longer than 256 bytes is cut. Success stays at debug.
+
+`auth` names the transport, the HTTP method and path or the gRPC method, the model when the call names one, and `decision` (`unauthenticated` or `forbidden`). Health and metrics stay open and are not logged. Each denied call is one line.
+
+A failed metrics publish is one `warn`. Further failures stay quiet until a publish succeeds or one metrics interval has passed.
 
 The log never contains the static token, a bearer token, a JWT, the creds file, a private key, or tensor values. The NATS CA file and the TLS files are paths in the configuration. Their contents are not logged.
 
@@ -65,6 +75,8 @@ Resolution order:
 1. `EDGELET_MICROSERVICE_UID`, when the platform set it.
 2. `ENGINE_SERVER_ID`, or the YAML key `serverId`, when the platform variable is absent. The environment overrides the file.
 3. A new id for that process, when neither is set.
+
+Server metadata reports this id as `name` on REST, gRPC, and NATS. `version` is the engine version linked into the image. A binary built without that version reports `dev`.
 
 ## Dashboard
 

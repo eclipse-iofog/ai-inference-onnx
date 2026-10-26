@@ -34,8 +34,9 @@ type InferConfig struct {
 	// Call RegisterInfer before Serve so those limits are in place.
 	MaxPayloadBytes int
 	// Logger records infer outcomes. A nil logger records nothing.
-	// Success is debug and includes timing. A rejected caller is warn. A run that did not finish is error.
-	// The log does not include the tensor body or the caller's credential.
+	// Success is debug. A rejected caller is warn. A run that did not finish is error.
+	// The line names the transport, model, version, request id, status, gRPC code, and duration.
+	// It does not include the tensor body or the caller's credential.
 	Logger *slog.Logger
 }
 
@@ -59,6 +60,7 @@ func (s *Server) ModelInfer(ctx context.Context, req *openinference.ModelInferRe
 	started := time.Now()
 	name := req.GetModelName()
 	requested := req.GetModelVersion()
+	id := req.GetId()
 	dir, chosen, err := batch.Select(s.directories(), name, requested)
 	logged := requested
 	if err == nil {
@@ -66,13 +68,13 @@ func (s *Server) ModelInfer(ctx context.Context, req *openinference.ModelInferRe
 	}
 	if err != nil {
 		batch.NoteFailure(s.runner, dir.Name, chosen.Version, err)
-		s.logInfer(name, logged, started, err)
+		s.logInfer(ctx, name, logged, id, started, err)
 		return nil, statusFrom(err)
 	}
 	decoded, err := decodeInfer(chosen.Signature, req, s.payload)
 	if err != nil {
 		batch.NoteFailure(s.runner, dir.Name, chosen.Version, err)
-		s.logInfer(name, logged, started, err)
+		s.logInfer(ctx, name, logged, id, started, err)
 		return nil, statusFrom(err)
 	}
 	reply, err := s.run(ctx, dir.Name, chosen.Version, decoded)
@@ -80,20 +82,20 @@ func (s *Server) ModelInfer(ctx context.Context, req *openinference.ModelInferRe
 		defer reply.Release()
 	}
 	if err != nil {
-		s.logInfer(name, logged, started, err)
+		s.logInfer(ctx, name, logged, id, started, err)
 		return nil, statusFrom(err)
 	}
 	outputs, err := responseOutputs(decoded, reply)
 	if err != nil {
-		s.logInfer(name, logged, started, err)
+		s.logInfer(ctx, name, logged, id, started, err)
 		return nil, statusFrom(err)
 	}
 	encoded, err := encodeResponse(dir.Name, chosen.Version, decoded.ID, outputs)
 	if err != nil {
-		s.logInfer(name, logged, started, err)
+		s.logInfer(ctx, name, logged, id, started, err)
 		return nil, statusFrom(err)
 	}
-	s.logInfer(name, logged, started, nil)
+	s.logInfer(ctx, name, logged, id, started, nil)
 	return encoded, nil
 }
 
@@ -104,26 +106,11 @@ func (s *Server) run(ctx context.Context, name, version string, req *batch.Reque
 	return s.runner.Run(ctx, name, version, req)
 }
 
-func (s *Server) logInfer(name, version string, started time.Time, err error) {
-	if s == nil || s.logger == nil {
+func (s *Server) logInfer(ctx context.Context, name, version, id string, started time.Time, err error) {
+	if s == nil {
 		return
 	}
-	result := batch.Status(err)
-	msg := "infer finished"
-	attrs := []any{
-		"model", name,
-		"version", version,
-		"status", int(result.GRPC),
-		"duration", time.Since(started).String(),
-	}
-	if err != nil {
-		msg = "infer rejected"
-		if result.Level >= slog.LevelError {
-			msg = "infer did not finish"
-		}
-		attrs = append(attrs, "error", result.Message)
-	}
-	s.logger.Log(context.Background(), result.Level, msg, attrs...)
+	batch.LogInfer(ctx, s.logger, "grpc", name, version, id, started, err)
 }
 
 func decodeInfer(sig batch.Signature, req *openinference.ModelInferRequest, payload int) (*batch.Request, error) {

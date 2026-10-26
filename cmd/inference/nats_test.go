@@ -54,7 +54,7 @@ func TestNATSPartialSettingsDoNotDial(t *testing.T) {
 			waitLive(t, ports.http)
 			assertGET(t, ports.http, "/v2/health/ready", http.StatusBadRequest)
 			assertGRPCHealth(t, ports.grpc, false)
-			stdout := waitLog(t, proc, "grpc listener is up")
+			stdout := waitLog(t, proc, `"transport":"grpc"`)
 			time.Sleep(300 * time.Millisecond)
 			if n := accepted.Load(); n != 0 {
 				t.Fatalf("the process dialed %d times", n)
@@ -328,6 +328,9 @@ func assertProcessSnapshot(t *testing.T, msg *nats.Msg, ports listenPorts, withN
 	}
 	if string(raw["live"]) != "true" || string(raw["nats_connected"]) != "true" {
 		t.Fatalf("live %s nats %s", raw["live"], raw["nats_connected"])
+	}
+	if string(raw["execution_providers"]) != "[]" || string(raw["ort_version"]) != `""` {
+		t.Fatalf("providers %s version %s", raw["execution_providers"], raw["ort_version"])
 	}
 	live, _ := get(t, ports.http, "/v2/health/live")
 	ready, _ := get(t, ports.http, "/v2/health/ready")
