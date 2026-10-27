@@ -3,7 +3,7 @@
 # riscv64 cross-compiles on linux/amd64 with a pinned riscv64-unknown-linux-gnu toolchain.
 # The last stage is a scratch image with the library, headers, licenses, version, and commit.
 
-FROM registry.access.redhat.com/ubi9/ubi:9.8@sha256:16e9e43d99e181463513cc84a514859b1abb9460f1c4d9e208da4b4e51cd5cc3 AS build-ubi
+FROM registry.access.redhat.com/ubi9/ubi:9.8@sha256:48393e4261b2544f652c915b3e052256ddf66ee95cd04dc0362191f302c4e94a AS build-ubi
 
 ARG TARGETARCH
 RUN dnf install -y --setopt=install_weak_deps=False \
