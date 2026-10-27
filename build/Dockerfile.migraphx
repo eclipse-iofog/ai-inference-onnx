@@ -4,7 +4,7 @@
 
 FROM scratch AS onnxruntime
 
-FROM rocm/dev-almalinux-8:7.1-complete@sha256:4aff9b792f62571ef7245fdf0932db06f936f38ea1fc60454a18c371c08f1c5c AS engine-ubi
+FROM rocm/dev-almalinux-8:7.2-complete@sha256:d2b13829357bc6319d7f4f99140ea37e704f58f025df2556d3d633aabd398bb6 AS engine-ubi
 
 ARG TARGETARCH
 ENV LDFLAGS=
@@ -43,7 +43,7 @@ RUN set -eu; \
       exit 1; \
     fi
 
-FROM rocm/dev-almalinux-8:7.1-complete@sha256:4aff9b792f62571ef7245fdf0932db06f936f38ea1fc60454a18c371c08f1c5c AS rocm-libs
+FROM rocm/dev-almalinux-8:7.2-complete@sha256:d2b13829357bc6319d7f4f99140ea37e704f58f025df2556d3d633aabd398bb6 AS rocm-libs
 
 RUN dnf install -y --setopt=install_weak_deps=False \
         migraphx \
