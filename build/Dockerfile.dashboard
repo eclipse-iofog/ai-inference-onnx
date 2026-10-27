@@ -17,10 +17,16 @@ RUN GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" go build -trimpath -buildvcs=false
 
 FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8@sha256:2d4c4551af6831dcd26bbf86108c4385de5183ec8fe6b5868f6f9640fe47f4ed AS user-staging
 
+# The first zone-data install leaves the zone names as empty links. Reinstall fills them in.
 RUN microdnf install -y --setopt=install_weak_deps=0 \
         shadow-utils \
         ca-certificates \
+        tzdata \
+    && microdnf reinstall -y tzdata \
     && microdnf clean all \
+    && test -e /usr/share/zoneinfo/UTC \
+    && test -x /usr/bin/curl \
+    && test -x /usr/bin/grep \
     && test -f /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem \
     && groupadd --gid 10001 dashboard \
     && useradd --uid 10001 --gid 10001 --home-dir /home/dashboard --no-create-home --shell /sbin/nologin dashboard
@@ -41,6 +47,115 @@ RUN set -eu; \
     chmod 0755 /staging/usr/local/bin/dashboard; \
     chown root:root /staging/usr/local/bin/dashboard /staging/licenses/LICENSE
 
+# curl answers health checks. Zone data lets TZ select local time. The default is UTC.
+RUN bash <<'ENDSCRIPT'
+set -euo pipefail
+mkdir -p /staging/usr/bin /staging/usr/lib64 /staging/usr/share
+cp -a /usr/bin/curl /usr/bin/grep /staging/usr/bin/
+cp -a /usr/share/zoneinfo /staging/usr/share/zoneinfo
+copy_soname() {
+  src="/usr/lib64/$1"
+  hops=0
+  while [ -e "$src" ]; do
+    cp -a "$src" /staging/usr/lib64/
+    if [ ! -L "$src" ]; then
+      return 0
+    fi
+    hops=$((hops + 1))
+    if [ "$hops" -gt 4 ]; then
+      echo "$1: too many links" >&2
+      return 1
+    fi
+    target=$(readlink "$src")
+    case "$target" in
+      /*) src=$target ;;
+      *) src="/usr/lib64/$target" ;;
+    esac
+  done
+  echo "missing $1" >&2
+  return 1
+}
+names=(
+  libcurl.so.4
+  libnghttp2.so.14
+  libssl.so.3
+  libcrypto.so.3
+  libz.so.1
+  libgssapi_krb5.so.2
+  libkrb5.so.3
+  libk5crypto.so.3
+  libcom_err.so.2
+  libkrb5support.so.0
+  libkeyutils.so.1
+  libselinux.so.1
+  libpcre2-8.so.0
+  libpcre.so.1
+  libsigsegv.so.2
+)
+for name in "${names[@]}"; do
+  copy_soname "$name"
+  test -e "/staging/usr/lib64/$name"
+done
+test -x /staging/usr/bin/curl
+test -x /staging/usr/bin/grep
+test -e /staging/usr/share/zoneinfo/UTC
+chmod 0755 /staging/usr/bin/curl /staging/usr/bin/grep
+for lib in /staging/usr/lib64/*; do
+  if [ -f "$lib" ] && [ ! -L "$lib" ]; then
+    chmod 0755 "$lib"
+  fi
+done
+chown root:root /staging/usr/bin/curl /staging/usr/bin/grep
+chown -R root:root /staging/usr/lib64 /staging/usr/share/zoneinfo
+check_staged() {
+  bin=$1
+  out=$(LD_LIBRARY_PATH=/staging/usr/lib64 ldd "$bin" 2>&1) || {
+    printf '%s\n' "$out" >&2
+    echo "$bin: ldd failed" >&2
+    return 1
+  }
+  case "$out" in
+    *'not found'*)
+      printf '%s\n' "$out" >&2
+      echo "$bin: missing library" >&2
+      return 1
+      ;;
+  esac
+  while IFS= read -r line; do
+    case "$line" in
+      *'=> /'*)
+        set -- $line
+        path=$3
+        base=${path##*/}
+        case "$path" in
+          /staging/*) ;;
+          *)
+            case "$base" in
+              libc.so.6|libm.so.6|libdl.so.2|libpthread.so.0|librt.so.1|libresolv.so.2|libgcc_s.so.1|ld-linux-*.so.*) ;;
+              *)
+                echo "$bin: $base is outside the staged root ($path)" >&2
+                exit 1
+                ;;
+            esac
+            ;;
+        esac
+        ;;
+    esac
+  done <<EOF
+$out
+EOF
+}
+check_staged /staging/usr/bin/curl
+check_staged /staging/usr/bin/grep
+for name in "${names[@]}"; do
+  for lib in /staging/usr/lib64/"$name"*; do
+    if [ -f "$lib" ] && [ ! -L "$lib" ]; then
+      check_staged "$lib"
+    fi
+  done
+done
+ENDSCRIPT
+
 FROM registry.access.redhat.com/ubi9/ubi-micro:9.8@sha256:5be877a2a280ae36eb9ab80ca4efb28bbf77c57abbba38137cdc37a03b8465e6 AS final
 
 COPY --from=runtime-staging /staging/ /
@@ -53,6 +168,8 @@ LABEL org.opencontainers.image.version="${OCI_VERSION}" \
       org.opencontainers.image.revision="${OCI_REVISION}" \
       org.opencontainers.image.source="${OCI_SOURCE_REPO}" \
       org.opencontainers.image.licenses="EPL-2.0"
+
+ENV TZ=UTC
 
 USER 10001:10001
 EXPOSE 8080

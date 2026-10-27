@@ -94,10 +94,8 @@ spec:
         protocol: tcp
     healthCheck:
       test:
-        - CMD
-        - curl
-        - -f 
-        - http://127.0.0.1:8080/health
+        - CMD-SHELL
+        - "curl -f -s http://127.0.0.1:8000/v2/health/live || exit 1"
       interval: 10000
       timeout: 3000
       retries: 3

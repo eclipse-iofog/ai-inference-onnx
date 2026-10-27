@@ -5,6 +5,19 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.1.0-rc.5]
+
+### Added
+
+- A UBI engine image includes `curl`, `grep`, and zone data at `/usr/share/zoneinfo`. `curl` is the live health check, and the libraries it loads are in the image. A `TZ` value selects the local time for logs. The default is UTC. The riscv64 image does not include them.
+
+
+## [dashboard/v0.1.0-rc.5]
+
+### Added
+
+- The dashboard image includes `curl`, `grep`, and zone data at `/usr/share/zoneinfo`. `curl` is the health check, and the libraries it loads are in the image. A `TZ` value selects the local time for logs. The default is UTC.
+
 ## [v0.1.0-rc.4]
 
 ### Added
