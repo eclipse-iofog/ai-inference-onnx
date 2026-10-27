@@ -10,7 +10,7 @@ require (
 	github.com/microsoft/onnxruntime/go v0.0.0-20261013071300-9036f076a2ce
 	github.com/nats-io/jwt/v2 v2.8.2
 	github.com/nats-io/nats-server/v2 v2.15.1
-	github.com/nats-io/nats.go v1.54.0
+	github.com/nats-io/nats.go v1.55.0
 	github.com/nats-io/nkeys v0.4.16
 	github.com/prometheus/client_golang v1.25.0
 	github.com/prometheus/client_model v0.6.3
