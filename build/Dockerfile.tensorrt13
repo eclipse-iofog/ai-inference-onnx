@@ -91,7 +91,7 @@ FROM engine-${TARGETARCH} AS engine
 
 # arm64 TensorRT 10.15 needs GLIBCXX_3.4.30. UBI 9 libstdc++ stops at
 # GLIBCXX_3.4.29. GCC 12.3 libstdc++ provides 3.4.30 and needs glibc 2.34.
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8@sha256:2d4c4551af6831dcd26bbf86108c4385de5183ec8fe6b5868f6f9640fe47f4ed AS libstd-arm64
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8@sha256:6f3a78179e0b30b930a186e7f68a4af52e51bb82406c9653be10bddd624e40f5 AS libstd-arm64
 
 ARG LIBSTDCXX_URL=https://ports.ubuntu.com/ubuntu-ports/pool/main/g/gcc-12/libstdc++6_12.3.0-1ubuntu1~22.04.3_arm64.deb
 ARG LIBSTDCXX_SHA256=59d244119e6129c7e9c0897491c0e210e925d15881b2dedcf8965ceb4fbf1aa3
@@ -238,7 +238,7 @@ ENDSCRIPT
 
 FROM cuda-libs-${TARGETARCH} AS cuda-libs
 
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8@sha256:2d4c4551af6831dcd26bbf86108c4385de5183ec8fe6b5868f6f9640fe47f4ed AS tensorrt-amd64
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8@sha256:6f3a78179e0b30b930a186e7f68a4af52e51bb82406c9653be10bddd624e40f5 AS tensorrt-amd64
 
 ARG TARGETARCH
 ARG TENSORRT_VERSION=10.14.1.48
@@ -307,7 +307,7 @@ rm -rf /tmp/tensorrt-src
 ENDSCRIPT
 
 
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8@sha256:2d4c4551af6831dcd26bbf86108c4385de5183ec8fe6b5868f6f9640fe47f4ed AS tensorrt-arm64
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8@sha256:6f3a78179e0b30b930a186e7f68a4af52e51bb82406c9653be10bddd624e40f5 AS tensorrt-arm64
 
 ARG TARGETARCH
 ARG TENSORRT_VERSION=10.15.1.29
@@ -377,7 +377,7 @@ ENDSCRIPT
 
 FROM tensorrt-${TARGETARCH} AS tensorrt
 
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8@sha256:2d4c4551af6831dcd26bbf86108c4385de5183ec8fe6b5868f6f9640fe47f4ed AS user-staging-ubi
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8@sha256:6f3a78179e0b30b930a186e7f68a4af52e51bb82406c9653be10bddd624e40f5 AS user-staging-ubi
 
 # The first zone-data install leaves the zone names as empty links. Reinstall fills them in.
 RUN microdnf install -y --setopt=install_weak_deps=0 \
