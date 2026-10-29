@@ -84,4 +84,4 @@ The dashboard process has its own `LOG_LEVEL`, `TLS_ENABLED`, `TLS_CERT`, `TLS_K
 
 ## Model file
 
-An optional `config.pbtxt` in the model directory may set `default_model_filename`, `max_batch_size`, `version_policy`, and `dynamic_batching.max_queue_delay_microseconds`, as described in [the model file guide](../user-guide/config-pbtxt.md).
+An optional `config.pbtxt` in the model directory may set `default_model_filename`, `max_batch_size`, `version_policy`, and `dynamic_batching.max_queue_delay_microseconds`, as described in [the model file guide](../user-guide/config-pbtxt.md). How those batch settings apply to the one queue per version is in [Scheduling](scheduling.md). The container user, `supplementalGroups`, and the `/var/cache/inference` volume are in [Images](images.md). They are not keys in this file.

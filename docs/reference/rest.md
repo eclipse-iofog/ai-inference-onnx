@@ -18,7 +18,24 @@ The error body is `{"error":"..."}`. It does not echo token claims.
 
 Model metadata, model ready, and infer also accept `/versions/{version}`. Omit the version and the server chooses. A version is a decimal integer with no leading zero. `latest` and `v1` are 404. Which file that version serves is described in [the repository](repository.md).
 
-`GET /v2/models` lists names this engine can run. `POST /v2/repository/index` lists every child directory. Each row has `name`, `version`, `state`, and `reason`. The body `{"ready": true}` keeps only models that can serve. An empty body is 400. The call is a POST because the filter is in the body. The permission is `get`.
+`GET /v2/models` lists names this engine can run. `POST /v2/repository/index` lists every child directory. The response is a JSON array. Each row has `name`, `version`, `state`, and `reason`. The body `{"ready": true}` keeps only models that can serve. An empty body is 400. `{}` lists every directory. The call is a POST because the filter is in the body. The permission is `get`.
+
+`GET /v2/models/{name}` returns `name`, `versions`, `platform`, and each input and output as `name`, `datatype`, and `shape`. A variable dimension is `-1`. The caller sends a concrete length. `GET /v2/models/{name}/ready` is 200 with an empty body when that version can serve.
+
+```json
+{
+  "name": "add",
+  "versions": ["1"],
+  "platform": "onnxruntime_onnx",
+  "inputs": [
+    {"name": "A", "datatype": "FP32", "shape": [2, 3]},
+    {"name": "B", "datatype": "FP32", "shape": [2, 3]}
+  ],
+  "outputs": [
+    {"name": "C", "datatype": "FP32", "shape": [2, 3]}
+  ]
+}
+```
 
 States are `READY`, `LOADING`, and `UNAVAILABLE`. `reason` is set when the state is not `READY`. There is no `UNLOADING` state.
 
@@ -46,7 +63,9 @@ The response carries `model_version` `"1"` and output `C`:
 
 `binary_data_size` marks an input whose bytes follow the JSON, in input order. `Inference-Header-Content-Length` is the JSON length. `Content-Length` is the whole body. A header length of 0 is a raw-binary body. That form is accepted only when the model has one input and at most one variable dimension, so the add model rejects it with 400.
 
-`sequence_id`, `sequence_start`, and `sequence_end` are 400. There is no sequence batcher, and ignoring those keys would run a sequence request as a stateless one. `timeout` is an integer in microseconds. `0` means the queue does not expire the request. A non-zero timeout that elapses while the request is still waiting is 504. Any other parameter key is accepted and ignored, and it is not echoed.
+`binary_data_output: true` returns outputs as bytes after the JSON. `binary_data` on one output overrides that output. A binary response sets `Content-Type` to `application/octet-stream` and `Inference-Header-Content-Length` to the JSON length. `INT64`, `UINT64`, `FP16`, and `BF16` outputs are binary even when the flag is absent. The datatype table is in [Tensors](tensors.md).
+
+`sequence_id`, `sequence_start`, and `sequence_end` are 400. There is no sequence batcher, and ignoring those keys would run a sequence request as a stateless one. `timeout` is an integer in microseconds. `0` means the queue does not expire the request. A non-zero timeout that elapses while the request is still waiting is 504. The queue and the batch rules are in [Scheduling](scheduling.md). Any other parameter key is accepted and ignored, and it is not echoed.
 
 A model that is `LOADING`, or a full queue, is 503. An unknown model or version is 404. A model that is `UNAVAILABLE` is 400.
 

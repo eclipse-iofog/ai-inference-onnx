@@ -68,3 +68,10 @@ wafer-labels
 The model stays not ready until `{KNOWLEDGE_PATH}/{name}/` exists. The engine does not read the files inside that directory, does not assume a `data/` subdirectory, and does not treat the item as a model or a session. A missing file, or a file that names nothing, means the model names no knowledge. A directory named `knowledge`, a file that cannot be read, or a file that is not valid UTF-8 makes the model `UNAVAILABLE` and the reason says so.
 
 Removing a named directory makes the model not ready. Editing a file inside the directory does not reload the session.
+
+## Reload
+
+Replacing the chosen ONNX file, its `.onnx.data` sibling, `config.pbtxt`, or the `knowledge` name file loads that model again. The model is `LOADING` until the new session is open. The in-flight batch finishes on the old session. A request that was waiting is not run on the new session.
+
+The filesystem watch waits 100 ms after the last change for that model, then loads. Every 30 seconds the process compares identity: inode, size, and modification time. The bytes are not hashed. The presence of each named knowledge directory is part of identity. Rewriting the name file with the same names, while those directories stay, is the same model. The sequence is in [Read a reload](../user-guide/reload.md).
+

@@ -57,10 +57,10 @@ spec:
       test:
         - CMD-SHELL
         - "curl -f -s http://127.0.0.1:8000/v2/health/live || exit 1"
-      interval: 10000
-      timeout: 3000
-      retries: 3
-      startPeriod: 10000
+      interval: 30
+      timeout: 10
+      startPeriod: 60
+      retries: 5
 
 ---
 apiVersion: datasance.com/v3        # iofog.org/v3
@@ -88,7 +88,7 @@ spec:
       test:
         - CMD-SHELL
         - "curl -f -s http://127.0.0.1:8080/health || exit 1"
-      interval: 10000
-      timeout: 3000
-      retries: 3
-      startPeriod: 5000
+      interval: 30
+      timeout: 10
+      startPeriod: 60
+      retries: 5

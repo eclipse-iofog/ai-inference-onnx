@@ -48,34 +48,63 @@ After the library loads, the engine reads the providers that library reports and
 
 It logs the chain once at start, on the `runtime` line in `providers`, for example `CPUExecutionProvider`. If that provider cannot start, the model is `UNAVAILABLE` with the reason, and the engine does not retry on CPU. After the provider has started, an unsupported node may still run on CPU. That is graph partitioning. It is not a fallback when the device library failed to load.
 
-OpenVINO runs on the CPU device. TensorRT keeps its engine cache and its timing cache under `/var/cache/inference/tensorrt`. That cache survives a restart only when `/var/cache/inference` is a volume.
+OpenVINO runs on the CPU device. TensorRT keeps its engine cache and its timing cache under `/var/cache/inference/tensorrt`. CUDA writes `/var/cache/inference/cuda`. Both paths are writable only when `/var/cache/inference` is a read-write volume. The walkthrough is in [Choose an image and pass a device](../user-guide/devices.md).
 
 ## Non-root
 
-The process runs as `10001:10001`. It needs no capability, and it listens above 1024. Run it with `--read-only --tmpfs /tmp`. The model bind is read-only. The writable paths are `/var/cache/inference` and `/home/inference`. A UBI image includes a shell, so an exec session can start. The riscv64 image does not.
+The process runs as `10001:10001`. It needs no capability, and it listens above 1024. `runAsUser` and `runAsGroup` stay `"10001"`. Run it with `--read-only --tmpfs /tmp`. The model bind and the knowledge bind are read-only. A UBI image includes a shell and `curl`, so an exec session and a command probe can start. The riscv64 image does not.
 
-## Devices and groups
+`readOnlyRootFilesystem` makes the image copy of `/var/cache/inference` unwritable. Mount a private named volume there, `accessMode: rw`, writable by uid `10001`. A root-owned empty volume cannot create `cuda` or `tensorrt`.
 
-| Image | What the operator passes |
-|---|---|
-| `cpu`, `openvino` | Nothing |
-| `cuda12`, `cuda13`, `tensorrt12`, `tensorrt13` | The NVIDIA container toolkit (`--gpus` or CDI). No group on servers. A Jetson board may need the `video` group id. |
-| `migraphx` | `/dev/kfd` and `/dev/dri`, plus the numeric ids of groups `video` and `render` from that host |
-| `qnn` | The device nodes and the group id the board vendor assigns |
+The volume sits on the microservice. The tmpfs sits on `container`.
 
-Group ids differ between hosts, so the operator passes the number. Docker and Podman take `--group-add <gid>`. One group is `runAsGroup`. A CDI spec carries the ids in `additionalGids`. Edgelet has no supplementary-groups field today. It does apply `runAsGroup`, `devices`, and `cdiDevices`.
-
-```bash
-docker run --group-add 44 --gpus all ghcr.io/eclipse-iofog/ai-inference-onnx:0.1.0-ort1.31.0-cuda12
+```yaml
+volumes:
+  - hostDestination: engine-cache
+    containerDestination: /var/cache/inference
+    accessMode: rw
+    type: volume
+    scope: private
 ```
 
 ```yaml
-runAsGroup: "44"
+tmpfs:
+  - containerPath: /tmp
+    size: 64
+    mode: "1777"
+```
+
+`/home/inference` is the home directory. The platform mounts the NATS credentials file there read-only. Add another volume only when a path under the read-only root must accept writes.
+
+## Devices and groups
+
+A device node on the host is group-owned. The process opens it when that host group id is in `supplementalGroups`. The primary group stays `10001`. Group ids differ between hosts. Read them on the node with `getent group render` and `getent group video`.
+
+| Image | What the operator passes | `supplementalGroups` |
+|---|---|---|
+| `cpu`, `openvino` | Nothing | `[]` |
+| `cuda12`, `cuda13`, `tensorrt12`, `tensorrt13` | The NVIDIA container toolkit (`--gpus` or CDI). A Jetson board may need the `video` group | The host ids that own the device nodes |
+| `migraphx` | `/dev/kfd` and `/dev/dri` | The numeric ids of `video` and `render` on that host |
+| `qnn` | The device nodes the board vendor assigns | The group id the board vendor assigns |
+
+Docker and Podman take `--group-add <gid>` once per id. That flag adds a supplemental group. `--user 10001:44` would replace the primary group. Leave the image user in place.
+
+```bash
+docker run --read-only --tmpfs /tmp \
+  --group-add 44 --gpus all \
+  -v engine-cache:/var/cache/inference \
+  ghcr.io/eclipse-iofog/ai-inference-onnx:0.1.0-ort1.31.0-cuda12
+```
+
+```yaml
+runAsUser: "10001"
+runAsGroup: "10001"
+supplementalGroups: [44]
 cdiDevices:
   - nvidia.com/gpu=all
 ```
 
-A CDI device spec that must add more than one group lists those ids under `additionalGids`. `runAsGroup` sets a single group.
+`supplementalGroups` is the catalog field for those host ids. A CDI spec that lists `additionalGids` does not replace it. More than one group is more than one integer in the array. `runAsGroup` holds a single group, and that group stays `10001`. The catalog block is in [Catalog](catalog.md).
 
 ## Licenses and archives
 

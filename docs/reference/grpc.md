@@ -34,9 +34,21 @@ grpcurl -plaintext \
 
 Omit `modelVersion` and the server chooses the served version. For this flat model that version is still `"1"`.
 
-`raw_input_contents` carries each input as little-endian bytes, in input order, instead of `contents`. `FP16` and `BF16` travel that way only. A JSON number for either type is rejected.
+| Datatype | `contents` field |
+|---|---|
+| `BOOL` | `boolContents` |
+| `INT8`, `INT16`, `INT32` | `intContents` |
+| `INT64` | `int64Contents` |
+| `UINT8`, `UINT16`, `UINT32` | `uintContents` |
+| `UINT64` | `uint64Contents` |
+| `FP32` | `fp32Contents` |
+| `FP64` | `fp64Contents` |
+| `BYTES` | `bytesContents` |
+| `FP16`, `BF16` | None. Send `raw_input_contents` |
 
-`sequence_id`, `sequence_start`, and `sequence_end` are `INVALID_ARGUMENT`, the same rejection as on REST. A timeout that elapses while the request is still waiting is `DEADLINE_EXCEEDED`. A model that is `LOADING`, or a full queue, is `UNAVAILABLE`. An unknown model or version is `NOT_FOUND`.
+`raw_input_contents` carries each input as little-endian bytes, in input order, instead of `contents`. `FP16` and `BF16` travel that way only. A JSON number for either type is rejected. `int64Contents` carries the full integer. REST JSON accepts `INT64` only within ±2^53. The datatype table is in [Tensors](tensors.md).
+
+`sequence_id`, `sequence_start`, and `sequence_end` are `INVALID_ARGUMENT`, the same rejection as on REST. A timeout that elapses while the request is still waiting is `DEADLINE_EXCEEDED`. A model that is `LOADING`, or a full queue, is `UNAVAILABLE`. An unknown model or version is `NOT_FOUND`. A model that is `UNAVAILABLE` is `FAILED_PRECONDITION`.
 
 ## Unload
 

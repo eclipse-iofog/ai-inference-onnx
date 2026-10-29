@@ -34,7 +34,9 @@
 
 **ONNX inference server for an edge node.** One process loads a model repository and serves it with the [KServe Open Inference Protocol](https://github.com/kserve/open-inference-protocol) on REST, gRPC, and NATS. A second process, the dashboard, reads metrics and does not run inference. The engine does not register itself with the Controller. The same engine image runs under `docker run`, `podman run`, and an Edgelet catalog.
 
-Language is Go 1.26.10. License is [EPL-2.0](LICENSE). Operator reference and task book: [docs/](docs/).
+Language is Go 1.26.10. License is [EPL-2.0](LICENSE).
+
+Read [the user guide](docs/user-guide/) from the first page to the last. It starts with what the process is, runs the container, reads a signature, then covers batching, the three transports, authentication, a device, and the Edgelet catalog. The [reference](docs/reference/) is the lookup for a key, a subject, a metric name, or an image tag.
 
 ## What you deploy
 
@@ -64,10 +66,11 @@ docker run --read-only --tmpfs /tmp \
   -e AUTH_MODE=disabled \
   -p 8000:8000 -p 8001:8001 -p 8002:8002 \
   -v "$PWD/models:/models:ro" \
+  -v engine-cache:/var/cache/inference \
   ghcr.io/eclipse-iofog/ai-inference-onnx:0.1.0-ort1.31.0-cpu
 ```
 
-`podman run` takes the same image and the same variables. A missing `AUTH_MODE` exits the process. `disabled` is for a local run and for CI. An Edgelet catalog sets `edgelet`. Writable paths are `/var/cache/inference` and `/home/inference`. Device access for GPU, NPU, and QNN images is in [Images](docs/reference/images.md).
+`podman run` takes the same image and the same variables. A missing `AUTH_MODE` exits the process. `disabled` is for a local run and for CI. An Edgelet catalog sets `edgelet`. Run the container `--read-only` with `--tmpfs /tmp`, and mount a read-write volume at `/var/cache/inference`. CUDA and TensorRT write that path. The volume must be writable by uid `10001`. `/home/inference` is the home directory. The platform mounts the NATS credentials file there read-only. Device access, `supplementalGroups`, and the cache volume are in [Images](docs/reference/images.md). The first local session, including how to read the signature before infer, is in [Run the container](docs/user-guide/docker-run.md).
 
 A model is one child directory of `/models` that resolves to an ONNX file. The directory name is the model name.
 
@@ -194,7 +197,7 @@ Every variant above has its runtime digest recorded in [`build/onnxruntime/runti
 
 `cuda12` on arm64 is NVIDIA server aarch64 (SBSA: Grace, GH200, or an Arm server with a discrete GPU). `cuda13` and `tensorrt13` on arm64 cover SBSA and JetPack 7. A JetPack 6 image is not published. There is no arm64 `tensorrt12`.
 
-`cpu` and `openvino` need no device. CUDA and TensorRT need the NVIDIA container toolkit (`--gpus` or CDI). `migraphx` needs `/dev/kfd` and `/dev/dri`, plus the numeric ids of groups `video` and `render` on that host. `qnn` needs the device nodes and the group id the board vendor assigns. Group ids differ between hosts, so the operator passes the number. TensorRT keeps its engine cache under `/var/cache/inference/tensorrt`. That cache survives a restart when `/var/cache/inference` is a volume.
+`cpu` and `openvino` need no device. CUDA and TensorRT need the NVIDIA container toolkit (`--gpus` or CDI). `migraphx` needs `/dev/kfd` and `/dev/dri`, plus the numeric ids of groups `video` and `render` on that host. `qnn` needs the device nodes and the group id the board vendor assigns. Group ids differ between hosts, so the operator passes the number from `getent group render` on that node. The image user stays `10001:10001`. Docker adds the device group with `--group-add`. A catalog sets `supplementalGroups` to those integers and leaves `runAsGroup` at `"10001"`. TensorRT keeps its engine cache under `/var/cache/inference/tensorrt`, and CUDA writes `/var/cache/inference/cuda`. That directory is a read-write volume when the root filesystem is read-only, and it must be writable by uid `10001`. The cache survives a restart when the volume does.
 
 A UBI engine image includes a shell, so an exec session can start. The riscv64 image does not. `/licenses` in every image holds the license and the third-party notices.
 
@@ -245,8 +248,8 @@ One JSON logger writes to stdout. After settings load, each line includes the se
 
 | | |
 |---|---|
-| [docs/reference/](docs/reference/) | Repository, configuration, authentication, REST, gRPC, NATS, metrics, images, catalog |
-| [docs/user-guide/](docs/user-guide/) | Run the container, bind a model, call infer, send a binary tensor, read a reload |
+| [docs/user-guide/](docs/user-guide/) | The path from a first container to a catalog: signature, batching, REST, binary tensors, gRPC, auth, devices, NATS, dashboard |
+| [docs/reference/](docs/reference/) | Repository, configuration, scheduling, tensors, authentication, REST, gRPC, NATS, metrics, images, catalog |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute |
 | [SECURITY.md](SECURITY.md) | How to report a vulnerability |
 | [CHANGELOG.md](CHANGELOG.md) | Release notes |
