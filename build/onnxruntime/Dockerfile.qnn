@@ -3,7 +3,7 @@
 # The SDK is the pinned Qualcomm AI Runtime Community archive.
 # The scratch image keeps this runtime, its provider, and the HTP backend libraries.
 
-FROM registry.access.redhat.com/ubi9/ubi:9.8@sha256:16e9e43d99e181463513cc84a514859b1abb9460f1c4d9e208da4b4e51cd5cc3 AS build-ubi
+FROM registry.access.redhat.com/ubi9/ubi:9.9@sha256:1e9f0ed9fceafb40878bc1705ff124aa150e3fed873f18c42cdc2dded319e0a8 AS build-ubi
 
 ARG TARGETARCH
 ARG QNN_VERSION=2.51.0.260929
