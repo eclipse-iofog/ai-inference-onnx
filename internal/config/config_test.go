@@ -47,6 +47,9 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.MicroserviceName != "" || cfg.NodeUID != "" || cfg.ApplicationName != "" {
 		t.Fatalf("labels %q %q %q", cfg.MicroserviceName, cfg.NodeUID, cfg.ApplicationName)
 	}
+	if cfg.APIGroupPrefix != "" || cfg.APIGroup != DefaultAPIGroup {
+		t.Fatalf("prefix %q group %q", cfg.APIGroupPrefix, cfg.APIGroup)
+	}
 	assertRandomID(t, cfg.ServerID)
 }
 
@@ -938,6 +941,154 @@ func TestLoadEdgeletLabels(t *testing.T) {
 	if cfg.MicroserviceName != "engine" || cfg.NodeUID != "node-1" || cfg.ApplicationName != "catalog" {
 		t.Fatalf("labels %q %q %q", cfg.MicroserviceName, cfg.NodeUID, cfg.ApplicationName)
 	}
+	if cfg.APIGroup != "catalog.engine."+DefaultAPIGroup {
+		t.Fatalf("group %q", cfg.APIGroup)
+	}
+}
+
+// TestLoadAPIGroup checks the prefix, the platform names, and the values that are rejected.
+func TestLoadAPIGroup(t *testing.T) {
+	label63 := "a" + strings.Repeat("b", 61) + "c"
+	label41 := "a" + strings.Repeat("b", 39) + "c"
+	label42 := "a" + strings.Repeat("b", 40) + "c"
+	// 233 bytes of labels is the longest prefix that keeps the DNS name at 253.
+	wide := label63 + "." + label63 + "." + label63 + "." + label41
+	tooWide := label63 + "." + label63 + "." + label63 + "." + label42
+
+	t.Run("prefix from file", func(t *testing.T) {
+		isolateEnv(t)
+		t.Setenv("AUTH_MODE", AuthDisabled)
+		t.Setenv("CONFIG_PATH", writeConfig(t, "apiGroupPrefix: plant\n"))
+		cfg := mustLoad(t)
+		if cfg.APIGroupPrefix != "plant" || cfg.APIGroup != "plant."+DefaultAPIGroup {
+			t.Fatalf("prefix %q group %q", cfg.APIGroupPrefix, cfg.APIGroup)
+		}
+	})
+
+	t.Run("env overrides file", func(t *testing.T) {
+		isolateEnv(t)
+		t.Setenv("AUTH_MODE", AuthDisabled)
+		t.Setenv("CONFIG_PATH", writeConfig(t, "apiGroupPrefix: from-file\n"))
+		t.Setenv("API_GROUP_PREFIX", " from-env ")
+		cfg := mustLoad(t)
+		if cfg.APIGroupPrefix != "from-env" || cfg.APIGroup != "from-env."+DefaultAPIGroup {
+			t.Fatalf("prefix %q group %q", cfg.APIGroupPrefix, cfg.APIGroup)
+		}
+	})
+
+	t.Run("blank env clears file", func(t *testing.T) {
+		isolateEnv(t)
+		t.Setenv("AUTH_MODE", AuthDisabled)
+		t.Setenv("CONFIG_PATH", writeConfig(t, "apiGroupPrefix: from-file\n"))
+		t.Setenv("API_GROUP_PREFIX", "  ")
+		cfg := mustLoad(t)
+		if cfg.APIGroupPrefix != "" || cfg.APIGroup != DefaultAPIGroup {
+			t.Fatalf("prefix %q group %q", cfg.APIGroupPrefix, cfg.APIGroup)
+		}
+	})
+
+	t.Run("prefix wins over names", func(t *testing.T) {
+		isolateEnv(t)
+		t.Setenv("AUTH_MODE", AuthEdgelet)
+		t.Setenv("CONFIG_PATH", filepath.Join(t.TempDir(), "missing.yaml"))
+		t.Setenv("API_GROUP_PREFIX", "plant")
+		t.Setenv("EDGELET_APPLICATION_NAME", "Line_A")
+		t.Setenv("EDGELET_MICROSERVICE_NAME", "engine")
+		cfg := mustLoad(t)
+		if cfg.APIGroup != "plant."+DefaultAPIGroup || cfg.ApplicationName != "Line_A" {
+			t.Fatalf("group %q application %q", cfg.APIGroup, cfg.ApplicationName)
+		}
+	})
+
+	t.Run("one name uses the default group", func(t *testing.T) {
+		isolateEnv(t)
+		t.Setenv("AUTH_MODE", AuthEdgelet)
+		t.Setenv("CONFIG_PATH", filepath.Join(t.TempDir(), "missing.yaml"))
+		t.Setenv("EDGELET_MICROSERVICE_NAME", "Engine")
+		cfg := mustLoad(t)
+		if cfg.MicroserviceName != "Engine" || cfg.APIGroup != DefaultAPIGroup {
+			t.Fatalf("name %q group %q", cfg.MicroserviceName, cfg.APIGroup)
+		}
+	})
+
+	t.Run("invalid names exit in edgelet mode", func(t *testing.T) {
+		isolateEnv(t)
+		t.Setenv("AUTH_MODE", AuthEdgelet)
+		t.Setenv("CONFIG_PATH", filepath.Join(t.TempDir(), "missing.yaml"))
+		t.Setenv("EDGELET_APPLICATION_NAME", "Line")
+		t.Setenv("EDGELET_MICROSERVICE_NAME", "engine")
+		err := loadErr(t)
+		if !strings.Contains(err.Error(), "Line") || !strings.Contains(err.Error(), "engine") {
+			t.Fatalf("error %v", err)
+		}
+	})
+
+	t.Run("invalid names keep the default group when auth is not edgelet", func(t *testing.T) {
+		isolateEnv(t)
+		t.Setenv("AUTH_MODE", AuthStatic)
+		t.Setenv("AUTH_STATIC_TOKEN", strings.Repeat("a", 32))
+		t.Setenv("CONFIG_PATH", filepath.Join(t.TempDir(), "missing.yaml"))
+		t.Setenv("EDGELET_APPLICATION_NAME", "Line")
+		t.Setenv("EDGELET_MICROSERVICE_NAME", "engine")
+		cfg := mustLoad(t)
+		if cfg.APIGroup != DefaultAPIGroup || cfg.ApplicationName != "Line" {
+			t.Fatalf("group %q application %q", cfg.APIGroup, cfg.ApplicationName)
+		}
+	})
+
+	cases := []struct {
+		name    string
+		prefix  string
+		wantErr bool
+	}{
+		{name: "dotted prefix", prefix: "plant.line"},
+		{name: "hyphen", prefix: "plant-a"},
+		{name: "digit", prefix: "a1"},
+		{name: "widest name", prefix: wide},
+		{name: "uppercase", prefix: "Plant", wantErr: true},
+		{name: "underscore", prefix: "plant_a", wantErr: true},
+		{name: "leading hyphen", prefix: "-plant", wantErr: true},
+		{name: "trailing hyphen", prefix: "plant-", wantErr: true},
+		{name: "empty label", prefix: "plant..line", wantErr: true},
+		{name: "slash", prefix: "plant/v2", wantErr: true},
+		{name: "long label", prefix: "a" + strings.Repeat("b", 62) + "c", wantErr: true},
+		{name: "name too long", prefix: tooWide, wantErr: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			isolateEnv(t)
+			t.Setenv("AUTH_MODE", AuthDisabled)
+			t.Setenv("CONFIG_PATH", filepath.Join(t.TempDir(), "missing.yaml"))
+			t.Setenv("API_GROUP_PREFIX", tc.prefix)
+			cfg, err := Load()
+			if tc.wantErr {
+				if err == nil {
+					t.Fatal("load succeeded")
+				}
+				if !strings.Contains(err.Error(), tc.prefix) {
+					t.Fatalf("error %v", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("load: %v", err)
+			}
+			if cfg.APIGroup != tc.prefix+"."+DefaultAPIGroup {
+				t.Fatalf("group %q", cfg.APIGroup)
+			}
+		})
+	}
+
+	t.Run("invalid prefix exits in static mode", func(t *testing.T) {
+		isolateEnv(t)
+		t.Setenv("AUTH_MODE", AuthStatic)
+		t.Setenv("AUTH_STATIC_TOKEN", strings.Repeat("a", 32))
+		t.Setenv("CONFIG_PATH", filepath.Join(t.TempDir(), "missing.yaml"))
+		t.Setenv("API_GROUP_PREFIX", "Plant")
+		if err := loadErr(t); !strings.Contains(err.Error(), "Plant") {
+			t.Fatalf("error %v", err)
+		}
+	})
 }
 
 func isolateEnv(t *testing.T) {
@@ -951,6 +1102,7 @@ func isolateEnv(t *testing.T) {
 		"METRICS_PORT",
 		"AUTH_MODE",
 		"AUTH_STATIC_TOKEN",
+		"API_GROUP_PREFIX",
 		"NATS_SERVER_URL",
 		"NATS_CREDS_PATH",
 		"NATS_CA_FILE",

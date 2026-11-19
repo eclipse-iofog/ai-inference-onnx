@@ -53,6 +53,12 @@ type Config struct {
 	AuthMode string
 	// AuthStaticToken is the bearer token used when AuthMode is static.
 	AuthStaticToken string
+	// APIGroupPrefix is an optional scope in front of inference.iofog.org/v2.
+	// Empty means both platform names select the group when they are set.
+	APIGroupPrefix string
+	// APIGroup is the rulesByGroup key checked in edgelet mode.
+	// Load sets it. It is not a config file key.
+	APIGroup string
 	// NATSServerURL is the NATS server URL. Empty means unset.
 	NATSServerURL string
 	// NATSCredsPath is the NATS credentials file. Empty means unset.
@@ -104,6 +110,7 @@ type fileConfig struct {
 	MetricsPort            *int    `yaml:"metricsPort"`
 	AuthMode               *string `yaml:"authMode"`
 	AuthStaticToken        *string `yaml:"authStaticToken"`
+	APIGroupPrefix         *string `yaml:"apiGroupPrefix"`
 	NATSServerURL          *string `yaml:"natsServerUrl"`
 	NATSCredsPath          *string `yaml:"natsCredsPath"`
 	NATSCAFile             *string `yaml:"natsCAFile"`
@@ -192,6 +199,7 @@ func applyFile(cfg *Config) (string, bool, error) {
 	setInt(&cfg.MetricsPort, file.MetricsPort)
 	setTrimmed(&cfg.AuthMode, file.AuthMode)
 	setRaw(&cfg.AuthStaticToken, file.AuthStaticToken)
+	setTrimmed(&cfg.APIGroupPrefix, file.APIGroupPrefix)
 	setTrimmed(&cfg.NATSServerURL, file.NATSServerURL)
 	setTrimmed(&cfg.NATSCredsPath, file.NATSCredsPath)
 	setNonEmpty(&cfg.NATSCAFile, file.NATSCAFile)
@@ -242,6 +250,7 @@ func applyEnv(cfg *Config) error {
 	if raw, ok := os.LookupEnv("AUTH_STATIC_TOKEN"); ok {
 		cfg.AuthStaticToken = raw
 	}
+	applyTrimmedEnv(&cfg.APIGroupPrefix, "API_GROUP_PREFIX")
 	applyTrimmedEnv(&cfg.NATSServerURL, "NATS_SERVER_URL")
 	applyTrimmedEnv(&cfg.NATSCredsPath, "NATS_CREDS_PATH")
 	applyNonEmptyEnv(&cfg.NATSCAFile, "NATS_CA_FILE")
@@ -288,6 +297,11 @@ func validate(cfg *Config) error {
 	if err := validateAuth(*cfg); err != nil {
 		return err
 	}
+	group, err := cfg.ResolveAPIGroup()
+	if err != nil {
+		return err
+	}
+	cfg.APIGroup = group
 	if err := validateLogLevel(cfg); err != nil {
 		return err
 	}

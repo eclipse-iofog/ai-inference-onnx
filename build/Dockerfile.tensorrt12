@@ -21,7 +21,7 @@ RUN dnf install -y --setopt=install_weak_deps=False \
          arm64) go_sum=3f4227ce7b206a513e794f1393adb473a07b46e94d18bd15d1c684bbb7319797 ;; \
          *) echo "no Go archive for ${TARGETARCH}" >&2; exit 1 ;; \
        esac \
-    && curl -fsSL -o /tmp/go.tgz "https://go.dev/dl/go1.26.10.linux-${TARGETARCH}.tar.gz" \
+    && curl -fsSL -o /tmp/go.tgz "https://go.dev/dl/go1.26.11.linux-${TARGETARCH}.tar.gz" \
     && echo "${go_sum}  /tmp/go.tgz" | sha256sum -c - \
     && rm -rf /usr/local/go \
     && tar -C /usr/local -xzf /tmp/go.tgz \
@@ -102,7 +102,7 @@ cp -a "$license" /out/licenses/cuda-cudart-LICENSE
 ENDSCRIPT
 
 
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8@sha256:2d4c4551af6831dcd26bbf86108c4385de5183ec8fe6b5868f6f9640fe47f4ed AS tensorrt-libs
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8@sha256:f26ef64172ea61f5ac5ba4be8c5c738bf8760b22b3e5148ce7b40f7308ab32db AS tensorrt-libs
 
 ARG TARGETARCH
 ARG TENSORRT_VERSION=10.14.1.48
@@ -171,7 +171,7 @@ fi
 rm -rf /tmp/tensorrt-src
 ENDSCRIPT
 
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8@sha256:2d4c4551af6831dcd26bbf86108c4385de5183ec8fe6b5868f6f9640fe47f4ed AS user-staging-ubi
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8@sha256:f26ef64172ea61f5ac5ba4be8c5c738bf8760b22b3e5148ce7b40f7308ab32db AS user-staging-ubi
 
 # The first zone-data install leaves the zone names as empty links. Reinstall fills them in.
 RUN microdnf install -y --setopt=install_weak_deps=0 \
@@ -416,7 +416,7 @@ for name in "${names[@]}"; do
 done
 ENDSCRIPT
 
-FROM registry.access.redhat.com/ubi9/ubi-micro:9.8@sha256:5be877a2a280ae36eb9ab80ca4efb28bbf77c57abbba38137cdc37a03b8465e6 AS final-ubi
+FROM registry.access.redhat.com/ubi9/ubi-micro:9.8@sha256:d3499a0896e2d6a1642f922615831bc5c2fd513bbb34f3446cabba530d9d54a2 AS final-ubi
 
 COPY --from=runtime-staging-ubi /staging/ /
 

@@ -5,6 +5,21 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.1.0]
+
+### Changed
+
+- Edgelet auth checks one API group. `apiGroupPrefix` (`API_GROUP_PREFIX`) selects `{prefix}.inference.iofog.org/v2`. When it is unset and both `EDGELET_APPLICATION_NAME` and `EDGELET_MICROSERVICE_NAME` are set, the group is `{application}.{microservice}.inference.iofog.org/v2`. Otherwise the group is `inference.iofog.org/v2`. A prefix that is not DNS labels exits the process. In `edgelet` mode, both names set and either name not a DNS label also exits when the prefix is unset. `start` logs the group as `api_group`.
+- The toolchain and the engine images use Go 1.26.11. The UBI 9.8 and distroless base digests are refreshed.
+
+## [dashboard/v0.1.0]
+
+### Changed
+
+- The dashboard image is built with Go 1.26.11. The UBI 9.8 minimal and micro digests are refreshed.
+
+### Changed
+
 ## [v0.1.0-rc.5]
 
 ### Added

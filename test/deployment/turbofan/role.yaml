@@ -13,7 +13,7 @@ rules:
     verbs:
       - get
   - apiGroups:
-      - inference.iofog.org/v2
+      - inference.engine.inference.iofog.org/v2
     resources:
       - models
       - server
@@ -21,13 +21,13 @@ rules:
     verbs:
       - get
   - apiGroups:
-      - inference.iofog.org/v2
+      - inference.engine.inference.iofog.org/v2
     resources:
       - models/*/infer
     verbs:
       - create
   - apiGroups:
-      - inference.iofog.org/v2
+      - inference.engine.inference.iofog.org/v2
     resources:
       - models/*
     verbs:

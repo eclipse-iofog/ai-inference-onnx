@@ -1,7 +1,7 @@
 # Dashboard image.
 # The binary is static. The final root is UBI 9.8 Micro, and the process writes no files.
 
-FROM --platform=$BUILDPLATFORM golang:1.26.10-trixie@sha256:909771fef53e3dcb0950255f0c9a8b4728c3b841e61509c7b29b098de7ee02d4 AS build
+FROM --platform=$BUILDPLATFORM golang:1.26.11-trixie@sha256:cff05dd6b81c901f2e8249eb6f91c69a60451d0f12c26bfef08e476a85b32d4d AS build
 
 ARG TARGETOS
 ARG TARGETARCH
@@ -15,7 +15,7 @@ RUN go mod download
 COPY . .
 RUN GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" go build -trimpath -buildvcs=false -o /out/dashboard ./cmd/dashboard
 
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8@sha256:2d4c4551af6831dcd26bbf86108c4385de5183ec8fe6b5868f6f9640fe47f4ed AS user-staging
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8@sha256:f26ef64172ea61f5ac5ba4be8c5c738bf8760b22b3e5148ce7b40f7308ab32db AS user-staging
 
 # The first zone-data install leaves the zone names as empty links. Reinstall fills them in.
 RUN microdnf install -y --setopt=install_weak_deps=0 \
@@ -156,7 +156,7 @@ for name in "${names[@]}"; do
 done
 ENDSCRIPT
 
-FROM registry.access.redhat.com/ubi9/ubi-micro:9.8@sha256:5be877a2a280ae36eb9ab80ca4efb28bbf77c57abbba38137cdc37a03b8465e6 AS final
+FROM registry.access.redhat.com/ubi9/ubi-micro:9.8@sha256:d3499a0896e2d6a1642f922615831bc5c2fd513bbb34f3446cabba530d9d54a2 AS final
 
 COPY --from=runtime-staging /staging/ /
 

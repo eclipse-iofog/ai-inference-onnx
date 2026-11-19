@@ -226,7 +226,7 @@
       "version": "9.8.0.87"
     },
     {
-      "bom-ref": "pkg:generic/go@1.26.10",
+      "bom-ref": "pkg:generic/go@1.26.11",
       "description": "Toolchain pin from go.mod. The SBOM does not record the patch level of the machine that generated it.",
       "licenses": [
         {
@@ -240,10 +240,10 @@
           "value": "dashboard,engine"
         }
       ],
-      "purl": "pkg:generic/go@1.26.10",
+      "purl": "pkg:generic/go@1.26.11",
       "scope": "required",
       "type": "library",
-      "version": "1.26.10"
+      "version": "1.26.11"
     },
     {
       "bom-ref": "pkg:generic/migraphx@7.1",
@@ -943,7 +943,7 @@
         "pkg:generic/cudnn@9.14.0.64",
         "pkg:generic/cudnn@9.17.1.4",
         "pkg:generic/cudnn@9.8.0.87",
-        "pkg:generic/go@1.26.10",
+        "pkg:generic/go@1.26.11",
         "pkg:generic/migraphx@7.1",
         "pkg:generic/onnxruntime@1.31.0",
         "pkg:generic/openvino@2026.2.1",
@@ -1002,7 +1002,7 @@
       ]
     }
   },
-  "serialNumber": "urn:uuid:71e76112-6d5b-5a8e-a236-5593308ae20f",
+  "serialNumber": "urn:uuid:c9b45974-a0b7-5fb2-b142-db45d22a68c3",
   "specVersion": "1.6",
   "version": 1
 }

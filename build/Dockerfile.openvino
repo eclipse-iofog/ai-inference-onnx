@@ -4,7 +4,7 @@
 
 FROM scratch AS onnxruntime
 
-FROM registry.access.redhat.com/ubi9/ubi:9.8@sha256:217dd5692d369799d34d09ffb6f5f3404efebc7900834490fdf9ae92fd6721d4 AS engine-ubi
+FROM registry.access.redhat.com/ubi9/ubi:9.8@sha256:87f66688da4e206d5a1877088626c542288a5ccd97898cf363b588d57817e6be AS engine-ubi
 
 ARG TARGETARCH
 RUN if [ "$TARGETARCH" != amd64 ]; then echo "OpenVINO is built for amd64" >&2; exit 1; fi
@@ -16,7 +16,7 @@ RUN dnf install -y --setopt=install_weak_deps=False \
         tar \
         gzip \
     && go_sum=ccfe7ae822d2c2f41f4fe7c956199967a4dac22d0ee0d2b2bfdb440aab3b20c5 \
-    && curl -fsSL -o /tmp/go.tgz "https://go.dev/dl/go1.26.10.linux-amd64.tar.gz" \
+    && curl -fsSL -o /tmp/go.tgz "https://go.dev/dl/go1.26.11.linux-amd64.tar.gz" \
     && echo "${go_sum}  /tmp/go.tgz" | sha256sum -c - \
     && rm -rf /usr/local/go \
     && tar -C /usr/local -xzf /tmp/go.tgz \
@@ -41,7 +41,7 @@ RUN set -eu; \
       exit 1; \
     fi
 
-FROM registry.access.redhat.com/ubi9/ubi:9.8@sha256:217dd5692d369799d34d09ffb6f5f3404efebc7900834490fdf9ae92fd6721d4 AS openvino-libs
+FROM registry.access.redhat.com/ubi9/ubi:9.8@sha256:87f66688da4e206d5a1877088626c542288a5ccd97898cf363b588d57817e6be AS openvino-libs
 
 ARG OPENVINO_VERSION=2026.2.1
 ARG OPENVINO_URL=https://storage.openvinotoolkit.org/repositories/openvino/packages/2026.2.1/linux/openvino_toolkit_rhel8_2026.2.1.21919.ede283a88e3_x86_64.tgz
@@ -118,7 +118,7 @@ fi
 rm -rf /tmp/openvino-src
 ENDSCRIPT
 
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8@sha256:2d4c4551af6831dcd26bbf86108c4385de5183ec8fe6b5868f6f9640fe47f4ed AS user-staging-ubi
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8@sha256:f26ef64172ea61f5ac5ba4be8c5c738bf8760b22b3e5148ce7b40f7308ab32db AS user-staging-ubi
 
 # The first zone-data install leaves the zone names as empty links. Reinstall fills them in.
 RUN microdnf install -y --setopt=install_weak_deps=0 \
@@ -356,7 +356,7 @@ for name in "${names[@]}"; do
 done
 ENDSCRIPT
 
-FROM registry.access.redhat.com/ubi9/ubi-micro:9.8@sha256:5be877a2a280ae36eb9ab80ca4efb28bbf77c57abbba38137cdc37a03b8465e6 AS final-ubi
+FROM registry.access.redhat.com/ubi9/ubi-micro:9.8@sha256:d3499a0896e2d6a1642f922615831bc5c2fd513bbb34f3446cabba530d9d54a2 AS final-ubi
 
 COPY --from=runtime-staging-ubi /staging/ /
 

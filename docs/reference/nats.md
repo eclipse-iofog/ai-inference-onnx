@@ -22,7 +22,7 @@ Subjects mirror the [REST](rest.md) path. `/` becomes `.`. The token `versions` 
 | `.../versions/{version}/...` | `inference.v2.models.<name>.versions.<version>.<operation>` |
 | `POST /v2/repository/index` | `inference.v2.repository.index` |
 
-`inference.v2.models.wafer-defect.infer` and `inference.v2.models.wafer-defect.versions.1.infer` are the same flat model. `inference.v2.models.my.detector.versions.2.infer` is model `my.detector`, version `2`. A name that contains `*` or `>` is rejected.
+`inference.v2.models.wafer-defect.infer` and `inference.v2.models.wafer-defect.versions.1.infer` are the same flat model. `inference.v2.models.my-detector.versions.2.infer` is model `my-detector`, version `2`. A name that contains `*` or `>` is rejected.
 
 The caller's user needs publish on the infer subjects and on `inference.xfer.>`. The engine user needs subscribe on those, and publish on `inference.metrics.engines.>`.
 
