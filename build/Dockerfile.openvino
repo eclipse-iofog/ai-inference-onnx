@@ -4,7 +4,7 @@
 
 FROM scratch AS onnxruntime
 
-FROM registry.access.redhat.com/ubi9/ubi:9.8@sha256:87f66688da4e206d5a1877088626c542288a5ccd97898cf363b588d57817e6be AS engine-ubi
+FROM registry.access.redhat.com/ubi9/ubi:9.9@sha256:e45746866f611d164042b961cd83f1093c4fdb422d9b99fcf23ff951626044f8 AS engine-ubi
 
 ARG TARGETARCH
 RUN if [ "$TARGETARCH" != amd64 ]; then echo "OpenVINO is built for amd64" >&2; exit 1; fi
@@ -41,7 +41,7 @@ RUN set -eu; \
       exit 1; \
     fi
 
-FROM registry.access.redhat.com/ubi9/ubi:9.8@sha256:87f66688da4e206d5a1877088626c542288a5ccd97898cf363b588d57817e6be AS openvino-libs
+FROM registry.access.redhat.com/ubi9/ubi:9.9@sha256:e45746866f611d164042b961cd83f1093c4fdb422d9b99fcf23ff951626044f8 AS openvino-libs
 
 ARG OPENVINO_VERSION=2026.2.1
 ARG OPENVINO_URL=https://storage.openvinotoolkit.org/repositories/openvino/packages/2026.2.1/linux/openvino_toolkit_rhel8_2026.2.1.21919.ede283a88e3_x86_64.tgz
