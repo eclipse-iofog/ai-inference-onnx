@@ -15,6 +15,7 @@ Listeners bind all interfaces. REST listens on 8000, gRPC on 8001, and metrics o
 | `metricsPort` | `METRICS_PORT` | `8002` |
 | `authMode` | `AUTH_MODE` | required |
 | `authStaticToken` | `AUTH_STATIC_TOKEN` | required when `authMode` is `static` |
+| `apiGroupPrefix` | `API_GROUP_PREFIX` | unset. See [API group](#api-group) |
 | `natsServerUrl` | `NATS_SERVER_URL` | unset, and NATS stays off |
 | `natsCredsPath` | `NATS_CREDS_PATH` | unset, and NATS stays off |
 | `natsCAFile` | `NATS_CA_FILE` | unset. An empty value counts as unset |
@@ -32,6 +33,10 @@ Listeners bind all interfaces. REST listens on 8000, gRPC on 8001, and metrics o
 | `serverId` | `ENGINE_SERVER_ID` | see below |
 
 NATS stays off unless both `natsServerUrl` and `natsCredsPath` are set. When a model file omits its own batch delay, `batchDelayMicroseconds` is the delay. `metricsInterval` is a duration, and the default publishes a snapshot every 10 seconds.
+
+## API group
+
+`apiGroupPrefix` is unset by default. An empty value counts as unset. The environment overrides the file. The value is the scope in front of `inference.iofog.org/v2`. How the process chooses the group, and when an unusable value exits, is in [Authentication](auth.md). `start` records the chosen group as `api_group`.
 
 ## TLS
 
@@ -56,7 +61,7 @@ The message is the event name. The detail is in attributes. A failure is an `err
 | `error` | A step the process attempted and could not finish. The message is `configuration`, `authentication`, `listen`, `runtime`, `models`, `watch`, `serve`, `stop`, `nats`, or `infer` when a run did not finish. |
 | `debug` | `infer` for a call that finished, and `batch` for a run. Timing is `duration_us` on infer, and `queue_wait_us` and `run_us` on a batch. |
 
-`start` records the engine version, the auth mode, the three ports, whether TLS is on, the model and knowledge paths, the queue capacity, the payload limit, the thread counts, the batch delay, the metrics interval, and whether NATS is enabled. It does not record the static token, a NATS URL, a credentials path, or a certificate path. NATS stays off when that field is false, and the process does not dial.
+`start` records the engine version, the auth mode, the API group, the three ports, whether TLS is on, the model and knowledge paths, the queue capacity, the payload limit, the thread counts, the batch delay, the metrics interval, and whether NATS is enabled. It does not record the static token, a NATS URL, a credentials path, or a certificate path. NATS stays off when that field is false, and the process does not dial.
 
 `infer` is one record for HTTP, gRPC, and NATS. It names `transport`, the model, the version, the caller request id, the HTTP status, and `duration_us`. gRPC also names `grpc_code`. A failure adds `error` and `error_kind`. An id longer than 256 bytes is cut. Success stays at debug.
 

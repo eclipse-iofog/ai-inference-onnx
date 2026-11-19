@@ -80,12 +80,12 @@ func unixSeconds(raw any) (int64, bool) {
 	}
 }
 
-func rulesAllow(claims jwt.MapClaims, resource, verb string) bool {
+func rulesAllow(claims jwt.MapClaims, group, resource, verb string) bool {
 	groups, ok := rulesByGroup(claims)
 	if !ok {
 		return false
 	}
-	raw, ok := groups[apiGroup]
+	raw, ok := groups[group]
 	if !ok {
 		return false
 	}

@@ -24,15 +24,25 @@ REST takes `Authorization: Bearer`. gRPC takes the same value in metadata. The c
 
 1. The signature matches the current `edgelet.jwk`, algorithm EdDSA.
 2. `tokenUse` is `serviceaccount`, and `iat`, `nbf`, `exp`, and `iss` are valid. The issuer is `https://edgelet.default.svc.bridge.local`.
-3. `rulesByGroup` allows the operation under the group `inference.iofog.org/v2`.
+3. `rulesByGroup` allows the operation under this process's API group.
 
-The `aud` claim on these tokens is the Edgelet bridge, `https://edgelet.default.svc.bridge.local`. The engine accepts that audience. The signature shows the token was minted by this node. The API group shows the caller may call inference.
+The group is chosen once at startup. The checker reads that group.
+
+1. `apiGroupPrefix`, or `API_GROUP_PREFIX`, when set. The group is `{prefix}.inference.iofog.org/v2`. The environment overrides the file.
+2. `EDGELET_APPLICATION_NAME` and `EDGELET_MICROSERVICE_NAME`, when both are set and the prefix is unset. The group is `{application}.{microservice}.inference.iofog.org/v2`.
+3. `inference.iofog.org/v2`, when the prefix is unset and either platform name is missing.
+
+The prefix, and each platform name used in the group, must be DNS labels: lowercase letters, digits, and hyphens, separated by dots. A label starts and ends with a letter or digit, and it is at most 63 characters. The name in front of `/v2` is at most 253 characters. A prefix that is not made of DNS labels exits the process in every auth mode. `edgelet` also exits when both platform names are set, the prefix is unset, and either name is not a DNS label. `static` and `disabled` do not read the group. In those modes an unusable platform name leaves the group at `inference.iofog.org/v2`.
+
+Engines that should accept the same role set the same prefix. The application and microservice names still identify the process in metrics and on the dashboard. `start` logs the group as `api_group`.
+
+The `aud` claim on these tokens is the Edgelet bridge, `https://edgelet.default.svc.bridge.local`. The engine accepts that audience. The signature shows the token was minted by this node. The API group shows the caller may call this process.
 
 A missing or invalid token is 401. A valid token whose rule does not allow the call is 403. gRPC uses the matching status codes. The body is `{"error":"..."}` and does not echo claims.
 
 Revocation is the token `exp` window. The engine does not call Edgelet on the infer path. Each node has its own signing key, so a token from another node fails verification. Callers on another node use NATS.
 
-The group is `inference.iofog.org/v2`. A call is denied unless a rule allows it. `GET` maps to the verb `get`, and `POST` maps to the verb `create`.
+A call is denied unless a rule under the chosen group allows it. `GET` maps to the verb `get`, and `POST` maps to the verb `create`.
 
 | Call | Resource | Verb |
 |---|---|---|

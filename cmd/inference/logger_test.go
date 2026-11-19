@@ -66,6 +66,7 @@ func TestStartLineOmitsSecrets(t *testing.T) {
 	logStart(logger, config.Config{
 		AuthMode:        config.AuthStatic,
 		AuthStaticToken: token,
+		APIGroup:        "plant.inference.iofog.org/v2",
 		HTTPPort:        8000,
 		GRPCPort:        8001,
 		MetricsPort:     8002,
@@ -83,7 +84,7 @@ func TestStartLineOmitsSecrets(t *testing.T) {
 			t.Fatalf("start line contains %q:\n%s", secret, out)
 		}
 	}
-	if !strings.Contains(out, `"msg":"start"`) || !strings.Contains(out, `"server_id":"engine-1"`) || !strings.Contains(out, `"version":"dev"`) || !strings.Contains(out, `"nats_enabled":false`) {
+	if !strings.Contains(out, `"msg":"start"`) || !strings.Contains(out, `"server_id":"engine-1"`) || !strings.Contains(out, `"version":"dev"`) || !strings.Contains(out, `"nats_enabled":false`) || !strings.Contains(out, `"api_group":"plant.inference.iofog.org/v2"`) {
 		t.Fatalf("start line %s", out)
 	}
 }

@@ -40,7 +40,7 @@ func httpErrorLog(logger *slog.Logger) *log.Logger {
 }
 
 // logStart records the settings a process is serving with.
-// The static token, NATS URL, credentials path, and certificate paths stay out of the line.
+// The API group is included. The static token, NATS URL, credentials path, and certificate paths stay out of the line.
 func logStart(logger *slog.Logger, cfg config.Config) {
 	if logger == nil {
 		return
@@ -48,6 +48,7 @@ func logStart(logger *slog.Logger, cfg config.Config) {
 	logger.Info("start",
 		"version", buildinfo.Version,
 		"auth_mode", cfg.AuthMode,
+		"api_group", cfg.APIGroup,
 		"http_port", cfg.HTTPPort,
 		"grpc_port", cfg.GRPCPort,
 		"metrics_port", cfg.MetricsPort,

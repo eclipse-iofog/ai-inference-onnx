@@ -4,7 +4,7 @@
 [![Release](https://github.com/eclipse-iofog/ai-inference-onnx/actions/workflows/release.yml/badge.svg)](https://github.com/eclipse-iofog/ai-inference-onnx/actions/workflows/release.yml)
 [![govulncheck](https://github.com/eclipse-iofog/ai-inference-onnx/actions/workflows/govulncheck.yml/badge.svg)](https://github.com/eclipse-iofog/ai-inference-onnx/actions/workflows/govulncheck.yml)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/eclipse-iofog/ai-inference-onnx/badge)](https://securityscorecards.dev/viewer/?uri=github.com/eclipse-iofog/ai-inference-onnx)
-[![Go](https://img.shields.io/badge/Go-1.26.10-blue.svg)](https://go.dev/)
+[![Go](https://img.shields.io/badge/Go-1.26.11-blue.svg)](https://go.dev/)
 [![License](https://img.shields.io/badge/License-EPL--2.0-blue.svg)](LICENSE)
 
 [![Engine (Eclipse)](https://img.shields.io/badge/ghcr.io-eclipse--iofog%2Fai--inference--onnx-2496ED?style=flat&logo=docker&logoColor=white)](https://ghcr.io/eclipse-iofog/ai-inference-onnx)
@@ -34,7 +34,7 @@
 
 **ONNX inference server for an edge node.** One process loads a model repository and serves it with the [KServe Open Inference Protocol](https://github.com/kserve/open-inference-protocol) on REST, gRPC, and NATS. A second process, the dashboard, reads metrics and does not run inference. The engine does not register itself with the Controller. The same engine image runs under `docker run`, `podman run`, and an Edgelet catalog.
 
-Language is Go 1.26.10. License is [EPL-2.0](LICENSE).
+Language is Go 1.26.11. License is [EPL-2.0](LICENSE).
 
 Read [the user guide](docs/user-guide/) from the first page to the last. It starts with what the process is, runs the container, reads a signature, then covers batching, the three transports, authentication, a device, and the Edgelet catalog. The [reference](docs/reference/) is the lookup for a key, a subject, a metric name, or an image tag.
 
@@ -138,9 +138,11 @@ A token passes when all of the following hold:
 
 1. The signature matches the current `edgelet.jwk`, algorithm EdDSA.
 2. `tokenUse` is `serviceaccount`, and `iat`, `nbf`, `exp`, and `iss` are valid. The issuer is `https://edgelet.default.svc.bridge.local`.
-3. `rulesByGroup` allows the operation under the group `inference.iofog.org/v2`.
+3. `rulesByGroup` allows the operation under this process's API group.
 
-The `aud` claim is the Edgelet bridge, `https://edgelet.default.svc.bridge.local`. The engine accepts that audience. The signature shows the token was minted by this node. The API group shows the caller may call inference. A missing or invalid token is 401. A valid token whose rule does not allow the call is 403. gRPC uses `UNAUTHENTICATED` and `PERMISSION_DENIED`. The body is `{"error":"..."}` and does not echo claims.
+The group is chosen once at startup. `API_GROUP_PREFIX`, when set, selects `{prefix}.inference.iofog.org/v2`. When it is unset and both `EDGELET_APPLICATION_NAME` and `EDGELET_MICROSERVICE_NAME` are set, the group is `{application}.{microservice}.inference.iofog.org/v2`. Otherwise the group is `inference.iofog.org/v2`. The prefix and each name used in the group are DNS labels. An unusable prefix exits the process. In `edgelet` mode, unusable platform names do too when both are set and the prefix is unset. The checker reads that one group. `start` logs it as `api_group`.
+
+The `aud` claim is the Edgelet bridge, `https://edgelet.default.svc.bridge.local`. The engine accepts that audience. The signature shows the token was minted by this node. The API group shows the caller may call this process. A missing or invalid token is 401. A valid token whose rule does not allow the call is 403. gRPC uses `UNAUTHENTICATED` and `PERMISSION_DENIED`. The body is `{"error":"..."}` and does not echo claims.
 
 Each node has its own signing key, so a token from another node fails verification. Revocation is the token `exp` window. The engine does not call Edgelet on the infer path. Callers on another node use NATS.
 
@@ -235,6 +237,7 @@ The engine reads `/etc/inference/config.yaml`. `CONFIG_PATH` selects another pat
 | `modelsPath` | `MODELS_PATH` | `/models` |
 | `authMode` | `AUTH_MODE` | required |
 | `authStaticToken` | `AUTH_STATIC_TOKEN` | required when `authMode` is `static` |
+| `apiGroupPrefix` | `API_GROUP_PREFIX` | unset. The platform names, or `inference.iofog.org/v2` |
 | `natsServerUrl` | `NATS_SERVER_URL` | unset, NATS stays off |
 | `natsCredsPath` | `NATS_CREDS_PATH` | unset, NATS stays off |
 | `httpPort` | `HTTP_PORT` | `8000` |

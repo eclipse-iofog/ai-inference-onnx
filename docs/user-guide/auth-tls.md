@@ -53,7 +53,9 @@ A token passes when all of the following hold:
 
 1. The signature matches the current `edgelet.jwk`, algorithm EdDSA.
 2. `tokenUse` is `serviceaccount`, and `iat`, `nbf`, `exp`, and `iss` are valid. The issuer is `https://edgelet.default.svc.bridge.local`.
-3. `rulesByGroup` allows the operation under the group `inference.iofog.org/v2`.
+3. `rulesByGroup` allows the operation under this process's API group.
+
+The group is chosen once at startup. `API_GROUP_PREFIX`, when set, selects `{prefix}.inference.iofog.org/v2`. When it is unset and both `EDGELET_APPLICATION_NAME` and `EDGELET_MICROSERVICE_NAME` are set, the group is `{application}.{microservice}.inference.iofog.org/v2`. Otherwise the group is `inference.iofog.org/v2`, including when only one platform name is set. The prefix and each name used in the group are DNS labels. A prefix that is not made of DNS labels exits the process. In `edgelet` mode, the process also exits when both names are set, the prefix is unset, and either name is not a DNS label. Engines that should accept the same role set the same prefix. `start` logs the group as `api_group`.
 
 The `aud` claim is the Edgelet bridge, `https://edgelet.default.svc.bridge.local`. The engine accepts that audience. Each node has its own signing key, so a token from another node fails verification. Revocation is the token `exp` window. The engine does not call Edgelet on the infer path. Callers on another node use NATS.
 

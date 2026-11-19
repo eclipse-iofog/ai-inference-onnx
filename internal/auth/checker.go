@@ -17,7 +17,7 @@ const (
 
 	edgeletIssuer          = "https://edgelet.default.svc.bridge.local"
 	tokenUseServiceAccount = "serviceaccount"
-	apiGroup               = "inference.iofog.org/v2"
+	apiGroup               = config.DefaultAPIGroup
 )
 
 // Decision is the result of an authentication check.
@@ -57,27 +57,34 @@ func (d Decision) String() string {
 type Checker struct {
 	mode        string
 	staticToken string
+	apiGroup    string
 	keys        *keyFile
 }
 
 // New prepares a checker from server settings.
 // jwkPath is the public signing key file. An empty path uses PublicJWKPath.
+// An API group prefix that is not DNS labels returns an error.
+// In edgelet mode, both platform names set and either name not DNS labels also returns an error.
 // In edgelet mode a missing or unusable key file returns an error.
 func New(cfg config.Config, jwkPath string) (*Checker, error) {
+	group, err := cfg.ResolveAPIGroup()
+	if err != nil {
+		return nil, err
+	}
 	switch cfg.AuthMode {
 	case config.AuthDisabled:
-		return &Checker{mode: cfg.AuthMode}, nil
+		return &Checker{mode: cfg.AuthMode, apiGroup: group}, nil
 	case config.AuthStatic:
 		if cfg.AuthStaticToken == "" {
 			return nil, errors.New("static token is required")
 		}
-		return &Checker{mode: cfg.AuthMode, staticToken: cfg.AuthStaticToken}, nil
+		return &Checker{mode: cfg.AuthMode, staticToken: cfg.AuthStaticToken, apiGroup: group}, nil
 	case config.AuthEdgelet:
 		keys, err := openKeyFile(resolveKeyPath(jwkPath))
 		if err != nil {
 			return nil, err
 		}
-		return &Checker{mode: cfg.AuthMode, keys: keys}, nil
+		return &Checker{mode: cfg.AuthMode, apiGroup: group, keys: keys}, nil
 	default:
 		return nil, errors.New("auth mode is not supported")
 	}
@@ -137,7 +144,7 @@ func (c *Checker) decideEdgelet(op operation, authorization string, now time.Tim
 	if !claimsAcceptable(claims, now) {
 		return Unauthenticated, ErrUnauthenticated
 	}
-	if !op.known || !rulesAllow(claims, op.resource, op.verb) {
+	if !op.known || !rulesAllow(claims, c.apiGroup, op.resource, op.verb) {
 		return Forbidden, ErrForbidden
 	}
 	return Allow, nil
