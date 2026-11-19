@@ -343,7 +343,7 @@ for name in "${names[@]}"; do
 done
 ENDSCRIPT
 
-FROM registry.access.redhat.com/ubi9/ubi-micro:9.8@sha256:d3499a0896e2d6a1642f922615831bc5c2fd513bbb34f3446cabba530d9d54a2 AS final-ubi
+FROM registry.access.redhat.com/ubi9/ubi-micro:9.9@sha256:dbd325b96bcd432dd42816d31412bdf1dc0fb973b79ed310344bc23c76c068db AS final-ubi
 
 COPY --from=runtime-staging-ubi /staging/ /
 
