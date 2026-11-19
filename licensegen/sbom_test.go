@@ -12,7 +12,7 @@ func TestParsePins(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if pins.ORTVersion != "1.31.0" || pins.Go != "1.26.10" {
+	if pins.ORTVersion != "1.31.0" || pins.Go != "1.26.11" {
 		t.Fatalf("version pins: ort %s go %s", pins.ORTVersion, pins.Go)
 	}
 	if pins.ORTCommit != "402979ac1bef89dcd55add41eaa7277c407599eb" {
