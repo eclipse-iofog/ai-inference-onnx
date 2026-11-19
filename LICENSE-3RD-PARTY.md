@@ -1969,7 +1969,7 @@ Distributed under the Boost Software License, Version 1.0.
 
 Components:
 
-- Go@1.26.10 (BSD-3-Clause)
+- Go@1.26.11 (BSD-3-Clause)
 - golang.org/x/crypto@v0.57.0 (BSD-3-Clause)
 - golang.org/x/mod@v0.33.0 (BSD-3-Clause)
 - golang.org/x/mod@v0.41.0 (BSD-3-Clause)

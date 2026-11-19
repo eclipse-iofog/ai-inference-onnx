@@ -5,7 +5,7 @@
 
 FROM scratch AS onnxruntime
 
-FROM registry.access.redhat.com/ubi9/ubi:9.8@sha256:217dd5692d369799d34d09ffb6f5f3404efebc7900834490fdf9ae92fd6721d4 AS engine-ubi
+FROM registry.access.redhat.com/ubi9/ubi:9.8@sha256:87f66688da4e206d5a1877088626c542288a5ccd97898cf363b588d57817e6be AS engine-ubi
 
 ARG TARGETARCH
 RUN dnf install -y --setopt=install_weak_deps=False \
@@ -20,7 +20,7 @@ RUN dnf install -y --setopt=install_weak_deps=False \
          arm64) go_sum=3f4227ce7b206a513e794f1393adb473a07b46e94d18bd15d1c684bbb7319797 ;; \
          *) echo "no Go archive for ${TARGETARCH}" >&2; exit 1 ;; \
        esac \
-    && curl -fsSL -o /tmp/go.tgz "https://go.dev/dl/go1.26.10.linux-${TARGETARCH}.tar.gz" \
+    && curl -fsSL -o /tmp/go.tgz "https://go.dev/dl/go1.26.11.linux-${TARGETARCH}.tar.gz" \
     && echo "${go_sum}  /tmp/go.tgz" | sha256sum -c - \
     && rm -rf /usr/local/go \
     && tar -C /usr/local -xzf /tmp/go.tgz \
@@ -45,7 +45,7 @@ RUN set -eu; \
       exit 1; \
     fi
 
-FROM --platform=$BUILDPLATFORM golang:1.26.10-trixie@sha256:909771fef53e3dcb0950255f0c9a8b4728c3b841e61509c7b29b098de7ee02d4 AS engine-cross
+FROM --platform=$BUILDPLATFORM golang:1.26.11-trixie@sha256:cff05dd6b81c901f2e8249eb6f91c69a60451d0f12c26bfef08e476a85b32d4d AS engine-cross
 
 ARG TARGETARCH
 RUN apt-get update \
@@ -82,7 +82,7 @@ RUN set -eu; \
       exit 1; \
     fi
 
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8@sha256:2d4c4551af6831dcd26bbf86108c4385de5183ec8fe6b5868f6f9640fe47f4ed AS user-staging-ubi
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8@sha256:f26ef64172ea61f5ac5ba4be8c5c738bf8760b22b3e5148ce7b40f7308ab32db AS user-staging-ubi
 
 # The first zone-data install leaves the zone names as empty links. Reinstall fills them in.
 RUN microdnf install -y --setopt=install_weak_deps=0 \
@@ -287,8 +287,8 @@ ENDSCRIPT
 FROM engine-cross AS staging-cross
 
 ARG TARGETARCH
-COPY --from=gcr.io/distroless/cc-debian13:nonroot@sha256:3ee00291cf386ec52a552e6a858d555debd74776eb4bfa53fa3df2cd6677515e /etc/passwd /tmp/distroless/passwd
-COPY --from=gcr.io/distroless/cc-debian13:nonroot@sha256:3ee00291cf386ec52a552e6a858d555debd74776eb4bfa53fa3df2cd6677515e /etc/group /tmp/distroless/group
+COPY --from=gcr.io/distroless/cc-debian13:nonroot@sha256:cb87acc574abe719b6e5c547384defa2f7b1f24af9605d3f618cf852495d8be2 /etc/passwd /tmp/distroless/passwd
+COPY --from=gcr.io/distroless/cc-debian13:nonroot@sha256:cb87acc574abe719b6e5c547384defa2f7b1f24af9605d3f618cf852495d8be2 /etc/group /tmp/distroless/group
 COPY --from=onnxruntime /lib/ /staging/opt/onnxruntime/lib/
 COPY --from=onnxruntime /licenses/ /staging/licenses/
 
@@ -368,7 +368,7 @@ RUN set -eu; \
     done; \
     [ "$fail" -eq 0 ]
 
-FROM registry.access.redhat.com/ubi9/ubi-micro:9.8@sha256:5be877a2a280ae36eb9ab80ca4efb28bbf77c57abbba38137cdc37a03b8465e6 AS final-ubi
+FROM registry.access.redhat.com/ubi9/ubi-micro:9.8@sha256:d3499a0896e2d6a1642f922615831bc5c2fd513bbb34f3446cabba530d9d54a2 AS final-ubi
 
 COPY --from=runtime-staging-ubi /staging/ /
 
@@ -392,7 +392,7 @@ WORKDIR /home/inference
 EXPOSE 8000 8001 8002
 ENTRYPOINT ["/usr/local/bin/inference"]
 
-FROM gcr.io/distroless/cc-debian13:nonroot@sha256:3ee00291cf386ec52a552e6a858d555debd74776eb4bfa53fa3df2cd6677515e AS final-distroless
+FROM gcr.io/distroless/cc-debian13:nonroot@sha256:cb87acc574abe719b6e5c547384defa2f7b1f24af9605d3f618cf852495d8be2 AS final-distroless
 
 COPY --from=staging-cross /staging/ /
 

@@ -32,7 +32,7 @@ Required 37, optional 5, excluded 64.
 | cuDNN | 9.14.0.64 | LicenseRef-NVIDIA-cuDNN | runtime-cuda13, runtime-tensorrt13-amd64 |
 | cuDNN | 9.17.1.4 | LicenseRef-NVIDIA-cuDNN | runtime-tensorrt13-arm64 |
 | cuDNN | 9.8.0.87 | LicenseRef-NVIDIA-cuDNN | runtime-cuda12 |
-| Go | 1.26.10 | BSD-3-Clause | dashboard, engine |
+| Go | 1.26.11 | BSD-3-Clause | dashboard, engine |
 | AMD MIGraphX | 7.1 | MIT | runtime-migraphx |
 | ONNX Runtime | 1.31.0 | MIT | runtime-cpu, runtime-cuda12, runtime-cuda13, runtime-migraphx, runtime-openvino, runtime-qnn, runtime-tensorrt12, runtime-tensorrt13-amd64, runtime-tensorrt13-arm64 |
 | OpenVINO | 2026.2.1 | Apache-2.0 | runtime-openvino |
